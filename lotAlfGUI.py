@@ -9,14 +9,25 @@ class MenuPanel(wx.Panel):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
         self.parent = parent
         self.dataPanel = dataPanel
+        self.register = register
 
-        self.collections_tree = wx.TreeCtrl(self, 1, wx.DefaultPosition, (-1,-1), wx.TR_HIDE_ROOT|wx.TR_HAS_BUTTONS)
 
         sizer = wx.BoxSizer(wx.VERTICAL)
 
+        self.SetSizer(sizer)
+        self.Centre()
+
+        self.CreateCollectionTrees()
+
+    def CreateCollectionTrees(self):
+
+        if self.GetSizer().GetItemCount() > 0:
+            self.GetSizer().Clear(0)
+            self.collections_tree.Destroy()
+        self.collections_tree = wx.TreeCtrl(self, 1, wx.DefaultPosition, (-1,-1), wx.TR_HIDE_ROOT|wx.TR_HAS_BUTTONS)
         root = self.collections_tree.AddRoot('Colecciones')
 
-        self.collections = register.get_collections_names()
+        self.collections = self.register.get_collections_names()
         self.options = ["Añadir", "Ver", "Comparar", "Estadísticas"]
         for collection in self.collections:
             tree = self.collections_tree.AppendItem(root, collection)
@@ -25,15 +36,17 @@ class MenuPanel(wx.Panel):
 
         self.collections_tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelChanged, id=1)
 
-        sizer.Add(self.collections_tree, 1, wx.EXPAND)
-        self.SetSizer(sizer)
-        self.Centre()
+        self.GetSizer().Add(self.collections_tree, 1, wx.EXPAND)
+        self.GetSizer().Layout()
+
 
     def OnSelChanged(self, event):
         item = event.GetItem()
         item_str = self.collections_tree.GetItemText(item).encode('utf-8')
         if self.collections_tree.GetItemText(item).encode('utf-8') in self.options:
             parent = self.collections_tree.GetItemParent(item) 
+            print(self.collections_tree.GetItemText(parent).encode('utf-8'))
+            print(self.collections)
             self.dataPanel.SetPage(self.options.index(self.collections_tree.GetItemText(item).encode('utf-8')), self.collections.index(self.collections_tree.GetItemText(parent).encode('utf-8')))
 
 
@@ -45,14 +58,17 @@ class UserPanel(wx.Panel):
 class DataPanel(wx.Panel):
     def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.register = register
 
         self.sizer = wx.BoxSizer(wx.VERTICAL)
 
+        startPanel = StartPanel(self, -1, register)
         viewPanel = ViewPanel(self, -1, register)
         addPanel = AddPanel(self, -1, register)
         comparePanel = ComparePanel(self, -1, register)
         statisticsPanel = StatisticsPanel(self, -1, register)
 
+        self.sizer.Add(startPanel, 1, wx.EXPAND)
         self.sizer.Add(viewPanel, 1, wx.EXPAND)
         self.sizer.Add(addPanel, 1, wx.EXPAND)
         self.sizer.Add(comparePanel, 1, wx.EXPAND)
@@ -61,13 +77,14 @@ class DataPanel(wx.Panel):
         self.SetSizer(self.sizer)
         self.Centre()
 
-        self.pages = [addPanel, viewPanel, comparePanel, statisticsPanel]
-        self.SetPage(0, 0)
+        self.pages = [addPanel, viewPanel, comparePanel, statisticsPanel, startPanel]
+        self.SetPage(4, 0)
 
     def SetPage(self, enabled_page, collection):
         for page in self.pages:
-            page.UpdateCollection(collection)
             self.sizer.Hide(page)
+            if len(self.register.get_collections()) > 0:
+                page.UpdateCollection(collection)
 
 
         self.sizer.Show(self.pages[enabled_page])
@@ -233,9 +250,87 @@ class ViewPanel(wx.Panel):
             number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + event.GetEventObject().number
             numberdialog = NumberDialog(self, -1, 'Número {}'.format(number), self.register, self.collection, number)
             numberdialog.ShowModal()
-            numberdialog.Destroy()
 
         self.UpdateNumbers(event.GetEventObject().unit, event.GetEventObject().number)
+
+
+class StartPanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.register = register
+        self.parent = parent
+        sizer = wx.BoxSizer(wx.VERTICAL)
+
+        welcome_font = wx.Font(38, wx.DECORATIVE, wx.ITALIC, wx.NORMAL)
+        name_font = wx.Font(69, wx.DECORATIVE, wx.ITALIC, wx.NORMAL)
+
+        welcome_statictext = wx.StaticText(self, -1, 'Bienvenido a')
+        welcome_statictext.SetFont(welcome_font)
+        name_statictext = wx.StaticText(self, -1, 'LotAlf')
+        name_statictext.SetFont(name_font)
+
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+
+        new_collection_button = wx.Button(self, -1, 'Nueva Colección')
+        import_button = wx.Button(self, -1, 'Importar Colección')
+
+        new_collection_button.Bind(wx.EVT_BUTTON, self.NewCollection)
+
+        buttons_sizer.Add(new_collection_button, 1, wx.ALL | wx.ALIGN_CENTER, border=50)
+        buttons_sizer.Add(import_button, 1, wx.ALL | wx.ALIGN_CENTER, border=50)
+
+        sizer.Add(welcome_statictext, 1, wx.ALL | wx.ALIGN_CENTER, border=10)
+        sizer.Add(name_statictext, 1, wx.ALL | wx.ALIGN_CENTER, border=10)
+        sizer.Add(buttons_sizer, 1, wx.ALL | wx.EXPAND, border=10)
+
+        self.SetSizer(sizer)
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+    def NewCollection(self, event):
+        newCollectionDialog = NewCollectionDialog(self, -1, 'Nueva Colección', self.register)
+        newCollectionDialog.ShowModal()
+
+class NewCollectionDialog(wx.Dialog):
+    def __init__(self, parent, id, title, register):
+        total_width, total_height = wx.GetDisplaySize()
+        wx.Dialog.__init__(self, parent, id, title, size=(500, 300))
+        self.register = register
+        self.parent = parent
+        sizer = wx.BoxSizer(wx.VERTICAL)
+  
+        def new(evt):
+            self.register.new_collection(name_textctrl.GetValue(), fill_checkbox.GetValue()) 
+            self.parent.parent.menuPanel.CreateCollectionTrees()
+            self.Destroy() 
+        def cancel(evt):
+            self.Destroy()
+
+        name_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        name_statictext = wx.StaticText(self, -1, 'Nombre: ', size=(100, 20))
+        name_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        name_sizer.Add(name_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        name_sizer.Add(name_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        fill_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        fill_checkbox = wx.CheckBox(self, -1, 'Marcar todos como completados', (10, 10))
+        fill_sizer.Add(fill_checkbox, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        new_button = wx.Button(self, -1, 'Guardar')
+        cancel_button = wx.Button(self, -1, 'Cancelar')
+        new_button.Bind(wx.EVT_BUTTON, new)
+        cancel_button.Bind(wx.EVT_BUTTON, cancel)
+
+        buttons_sizer.Add(new_button, 1, wx.ALL | wx.ALIGN_CENTER)
+        buttons_sizer.Add(cancel_button, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        sizer.Add(name_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
+        sizer.Add(fill_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
+        sizer.Add(buttons_sizer, 1, wx.ALL | wx.EXPAND, border=10)
+
+        self.SetSizer(sizer)
 
 
 class NumberDialog(wx.Dialog):
@@ -459,6 +554,7 @@ class MyFrame(wx.Frame):
         userPanel = UserPanel(left_horizontal_splitter, -1, register)
         dataPanel = DataPanel(global_vertical_splitter, -1, register)
         menuPanel = MenuPanel(left_horizontal_splitter, -1, dataPanel, register)
+        dataPanel.menuPanel = menuPanel
 
 
         menuPanel.SetBackgroundColour(wx.LIGHT_GREY)
