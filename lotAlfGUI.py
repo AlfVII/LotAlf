@@ -336,7 +336,7 @@ class NewCollectionDialog(wx.Dialog):
 class NumberDialog(wx.Dialog):
     def __init__(self, parent, id, title, register, collection, number):
         total_width, total_height = wx.GetDisplaySize()
-        wx.Dialog.__init__(self, parent, id, title, size=(500, 300))
+        wx.Dialog.__init__(self, parent, id, title, size=(500, 400))
         self.register = register
         sizer = wx.BoxSizer(wx.VERTICAL)
 
@@ -410,6 +410,24 @@ class NumberDialog(wx.Dialog):
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
 
+        lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
+        lot_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        lot_sizer.Add(lot_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        lot_sizer.Add(lot_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        origin_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        origin_statictext = wx.StaticText(self, -1, 'Origen: ', size=(100, 20))
+        origin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        origin_sizer.Add(origin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        origin_sizer.Add(origin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        copies_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        copies_statictext = wx.StaticText(self, -1, 'Copias: ', size=(100, 20))
+        copies_textctrl = wx.TextCtrl(self, -1, '1', size=(100, 20))
+        copies_sizer.Add(copies_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        copies_sizer.Add(copies_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
 
         buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
         save_button = wx.Button(self, -1, 'Guardar')
@@ -424,6 +442,9 @@ class NumberDialog(wx.Dialog):
         sizer.Add(year_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
         sizer.Add(coin_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
         sizer.Add(administration_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
+        sizer.Add(lot_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
+        sizer.Add(origin_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
+        sizer.Add(copies_sizer, 1, wx.ALL | wx.ALIGN_LEFT, border=10)
         sizer.Add(buttons_sizer, 1, wx.ALL | wx.EXPAND, border=10)
 
         self.SetSizer(sizer)
@@ -500,6 +521,26 @@ class AddPanel(wx.Panel):
         administration_sizer.Add(administration_province_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        
+
+        lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
+        lot_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        lot_sizer.Add(lot_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        lot_sizer.Add(lot_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        origin_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        origin_statictext = wx.StaticText(self, -1, 'Origen: ', size=(100, 20))
+        origin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        origin_sizer.Add(origin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        origin_sizer.Add(origin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
+        copies_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        copies_statictext = wx.StaticText(self, -1, 'Copias: ', size=(100, 20))
+        copies_textctrl = wx.TextCtrl(self, -1, '1', size=(100, 20))
+        copies_sizer.Add(copies_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
+        copies_sizer.Add(copies_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+
 
 
         log_statictext = wx.StaticText(self, -1, 'Listo', style=wx.ALIGN_CENTRE_HORIZONTAL, size=(100, 20))
@@ -517,6 +558,9 @@ class AddPanel(wx.Panel):
         sizer.Add(year_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
         sizer.Add(coin_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
         sizer.Add(administration_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
+        sizer.Add(lot_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
+        sizer.Add(origin_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
+        sizer.Add(copies_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
         sizer.Add(log_statictext, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
         sizer.Add(buttons_sizer, 0, wx.ALL | wx.ALIGN_CENTER, border=10)
         sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 20)
