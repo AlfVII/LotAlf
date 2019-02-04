@@ -24,7 +24,8 @@ class MenuPanel(wx.Panel):
         if self.GetSizer().GetItemCount() > 0:
             self.GetSizer().Clear(0)
             self.collections_tree.Destroy()
-        self.collections_tree = wx.TreeCtrl(self, 1, wx.DefaultPosition, (-1,-1), wx.TR_HIDE_ROOT|wx.TR_HAS_BUTTONS)
+        # self.collections_tree = wx.TreeCtrl(self, 1, wx.DefaultPosition, (-1,-1), wx.TR_HIDE_ROOT|wx.TR_HAS_BUTTONS)
+        self.collections_tree = wx.TreeCtrl(self, 1, wx.DefaultPosition, (-1,-1), wx.TR_HAS_BUTTONS)
         root = self.collections_tree.AddRoot('Colecciones')
 
         self.collections = self.register.get_collections_names()
@@ -39,14 +40,15 @@ class MenuPanel(wx.Panel):
         self.GetSizer().Add(self.collections_tree, 1, wx.EXPAND)
         self.GetSizer().Layout()
 
+        self.collections_tree.Expand(root)
 
     def OnSelChanged(self, event):
         item = event.GetItem()
         item_str = self.collections_tree.GetItemText(item).encode('utf-8')
+        if item == self.collections_tree.GetRootItem():
+            self.dataPanel.SetPage(4, 0)
         if self.collections_tree.GetItemText(item).encode('utf-8') in self.options:
             parent = self.collections_tree.GetItemParent(item) 
-            print(self.collections_tree.GetItemText(parent).encode('utf-8'))
-            print(self.collections)
             self.dataPanel.SetPage(self.options.index(self.collections_tree.GetItemText(item).encode('utf-8')), self.collections.index(self.collections_tree.GetItemText(parent).encode('utf-8')))
 
 
@@ -83,7 +85,7 @@ class DataPanel(wx.Panel):
     def SetPage(self, enabled_page, collection):
         for page in self.pages:
             self.sizer.Hide(page)
-            if len(self.register.get_collections()) > 0:
+            if self.register.get_number_collections() > 0:
                 page.UpdateCollection(collection)
 
 
@@ -133,6 +135,7 @@ class ViewPanel(wx.Panel):
         self.register = register
 
         sizer = wx.BoxSizer(wx.VERTICAL)
+        self.collection = None
 
         total_width, total_height = wx.GetDisplaySize()
         button_width = total_height / 13
@@ -222,14 +225,15 @@ class ViewPanel(wx.Panel):
         elif unit == 100:
             self.current_hundreds = number
 
-        for button in self.all_buttons:
-            if button.unit == 1:
-                temp_number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + button.number
-                number_data = self.register.get_number_data(self.collection, temp_number)
-                if number_data is not None:
-                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index(number_data['status'])])
-                else:
-                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index('Falta')])
+        if self.collection is not None:
+            for button in self.all_buttons:
+                if button.unit == 1:
+                    temp_number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + button.number
+                    number_data = self.register.get_number_data(self.collection, temp_number)
+                    if number_data is not None:
+                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index(number_data['status'])])
+                    else:
+                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index('Falta')])
 
 
         self.number.SetLabel('Centena: {:05d}'.format(self.current_ten_thousands + self.current_thousands + self.current_hundreds))
@@ -349,27 +353,71 @@ class NumberDialog(wx.Dialog):
                 evt.GetEventObject().SetValue(evt.GetEventObject().default_text)
             evt.Skip()   
         def save(evt):
-            data = {'status': status_combobox.GetStringSelection(),
-                    'year': year_textctrl.GetLabel(),
-                    'coin': coin_textctrl.GetLabel(),
-                    'administration': {'province': administration_province_textctrl.GetLabel(),
-                                       'town': administration_town_textctrl.GetLabel(),
-                                       'number': administration_number_textctrl.GetLabel()
-                                      }
+
+            administration_province = administration_province_textctrl.GetValue().encode('utf-8')
+            if administration_province == administration_province_textctrl.default_text:
+                administration_province = ''
+            administration_town = administration_town_textctrl.GetValue().encode('utf-8')
+            if administration_town == administration_town_textctrl.default_text:
+                administration_town = ''
+            administration_number = administration_number_textctrl.GetValue().encode('utf-8')
+            if administration_number == administration_number_textctrl.default_text:
+                administration_number = ''
+            data = {'number': number,
+                    'status': str(status_combobox.GetStringSelection()),
+                    'year': str(year_textctrl.GetValue()),
+                    'coin': str(coin_textctrl.GetValue()),
+                    'lot': str(lot_textctrl.GetValue()),
+                    'origin': str(origin_textctrl.GetValue()),
+                    'copies': 1,
+                    'administration_province': administration_province,
+                    'administration_town': administration_town,
+                    'administration_number': administration_number
                     }
-            self.register.save_to_collection(collection, number, data) 
+
+            if self.register.get_number_data(collection, number) is not None:
+                self.register.update_collection(collection, number, data) 
+            else:
+                self.register.add_to_collection(collection, data) 
+
             self.Destroy() 
         def cancel(evt):
             self.Destroy()
         def load():
             number_data = self.register.get_number_data(collection, number)
             if number_data is not None:
-                status_combobox.SetSelection(status_combobox.FindString(number_data['status']))
-                year_textctrl.SetLabel(number_data['year'])
-                coin_textctrl.SetLabel(number_data['coin'])
-                administration_province_textctrl.SetLabel(number_data['administration']['province'])
-                administration_town_textctrl.SetLabel(number_data['administration']['town'])
-                administration_number_textctrl.SetLabel(number_data['administration']['number'])
+                if number_data['status'] == None:
+                    status_combobox.SetSelection('')
+                else:
+                    status_combobox.SetSelection(status_combobox.FindString(number_data['status']))
+                if number_data['year'] == None:
+                        year_textctrl.SetValue('')
+                else:
+                    year_textctrl.SetValue(number_data['year'])
+                if number_data['coin'] == None:
+                    coin_textctrl.SetValue('')
+                else:
+                    coin_textctrl.SetValue(number_data['coin'])
+                if number_data['lot'] == None:
+                    lot_textctrl.SetValue('')
+                else:
+                    lot_textctrl.SetValue(number_data['lot'])
+                if number_data['origin'] == None:
+                    origin_textctrl.SetValue('')
+                else:
+                    origin_textctrl.SetValue(number_data['origin'])
+                if number_data['administration_province'] == None:
+                    administration_province_textctrl.SetValue('')
+                else:
+                    administration_province_textctrl.SetValue(number_data['administration_province'])
+                if number_data['administration_town'] == None:
+                    administration_town_textctrl.SetValue('')
+                else:
+                    administration_town_textctrl.SetValue(number_data['administration_town'])
+                if number_data['administration_number'] == None:
+                    administration_number_textctrl.SetValue('')
+                else:
+                    administration_number_textctrl.SetValue(number_data['administration_number'])
 
 
         statuses = ['Perfecto', 'Roto', 'Doblado', 'Falta']
@@ -460,23 +508,35 @@ class AddPanel(wx.Panel):
         sizer = wx.BoxSizer(wx.VERTICAL)
 
         def toggle1(evt):
-            if evt.GetEventObject().GetValue() == evt.GetEventObject().default_text:
+            if evt.GetEventObject().GetValue().encode('utf-8') == evt.GetEventObject().default_text:
                 evt.GetEventObject().SetValue("")
             evt.Skip()
         def toggle2(evt):
-            if evt.GetEventObject().GetValue() == "":
+            if evt.GetEventObject().GetValue().encode('utf-8') == "".encode('utf-8'):
                 evt.GetEventObject().SetValue(evt.GetEventObject().default_text)
             evt.Skip() 
         def add(evt):
-            data = {'status': status_combobox.GetStringSelection(),
-                    'year': year_textctrl.GetLabel(),
-                    'coin': coin_textctrl.GetLabel(),
-                    'administration': {'province': administration_province_textctrl.GetLabel(),
-                                       'town': administration_town_textctrl.GetLabel(),
-                                       'number': administration_number_textctrl.GetLabel()
-                                      }
+            administration_province = administration_province_textctrl.GetValue().encode('utf-8')
+            if administration_province == administration_province_textctrl.default_text:
+                administration_province = ''
+            administration_town = administration_town_textctrl.GetValue().encode('utf-8')
+            if administration_town == administration_town_textctrl.default_text:
+                administration_town = ''
+            administration_number = administration_number_textctrl.GetValue().encode('utf-8')
+            if administration_number == administration_number_textctrl.default_text:
+                administration_number = ''
+            data = {'number': int(number_textctrl.GetValue()),
+                    'status': str(status_combobox.GetStringSelection()),
+                    'year': str(year_textctrl.GetValue()),
+                    'coin': str(coin_textctrl.GetValue()),
+                    'lot': str(''),
+                    'origin': str(''),
+                    'copies': 1,
+                    'administration_province': administration_province,
+                    'administration_town': administration_town,
+                    'administration_number': administration_number
                     }
-            self.register.add_to_collection(self.collection, number_textctrl.GetValue(), data)
+            self.register.add_to_collection(self.collection, data)
 
         number_sizer = wx.BoxSizer(wx.HORIZONTAL)
         number_statictext = wx.StaticText(self, -1, 'Número: ', size=(100, 20))

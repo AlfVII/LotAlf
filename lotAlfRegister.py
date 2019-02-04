@@ -1,76 +1,159 @@
 # -*- coding: utf-8 -*-
 import glob
-import yaml
-
+import sqlite3
+from sqlite3 import Error
+from string import maketrans
 
 class Register():
     def __init__(self):
 
-        self.collections = self.load_collections()
+
+        try:
+            self.collections = sqlite3.connect('collections.db')
+            self.collections.text_factory = str
+        except Error as e:
+            print(e)
+
+    def __del__(self):
+        self.collections.close()
 
     def get_number_data(self, collection_index, number):
-        if str('{:05d}'.format(number)) in self.collections[collection_index]['data']:
-            return self.collections[collection_index]['data'][str('{:05d}'.format(number))]
+        collection = self.get_collection_name(collection_index)
+        sql = "SELECT * FROM {} WHERE number={};".format(collection, number)
+
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            data = c.fetchall()
+        except Error as e:
+            print(e)
+
+        datadict = {}
+        if len(data) > 0:
+            for idx, col in enumerate(c.description):
+                datadict[col[0]] = data[0][idx]
+
+            return datadict
         else:
             return None
-        return None
 
-    def get_collections(self):
-        return self.collections
+    def get_number_collections(self):
+        sql = "SELECT name FROM sqlite_master WHERE type='table';"
+
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            tables = c.fetchall()
+        except Error as e:
+            print(e)
+
+        return len(tables)
 
     def new_collection(self, name, fill):
-        collection = {'name': name, 'data': {}}
+        sql = """ CREATE TABLE IF NOT EXISTS {} (
+                                        number integer PRIMARY KEY,
+                                        status text NOT NULL,
+                                        origin text,
+                                        lot text,
+                                        year text,
+                                        coin text,
+                                        administration_province text,
+                                        administration_town text,
+                                        administration_number text,
+                                        copies integer NOT NULL
+                                    ); """.format(name)
+
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+        except Error as e:
+            print(e)
+
         if fill:
             for i in range(0, 100000):
-                print(i)
-                collection['data'][str('{:05d}'.format(i))] = {'status': 'Perfecto',
-                                                               'year': '',
-                                                               'coin': '',
-                                                               'lot': '',
-                                                               'administration': {'province': '',
-                                                                                  'town': '',
-                                                                                  'number': '' 
-                                                                                 },
-                                                               'origin': '',
-                                                               'copies': 1
-                                                               }
-        self.save_collection(collection)
-        self.collections = self.load_collections()
+                datum = {'number': i, 
+                         'status': 'Perfecto', 
+                         'year': None, 
+                         'coin': None, 
+                         'lot': None, 
+                         'administration_province': None, 
+                         'administration_town': None, 
+                         'administration_number': None, 
+                         'origin': None, 
+                         'copies': 1}
+
+
+                columns = ', '.join(datum.keys())
+                placeholders = ':'+', :'.join(datum.keys())
+                sql = 'INSERT INTO {} ({}) VALUES ({})'.format(name, columns, placeholders)
+                c.execute(sql, datum)
+
+            self.collections.commit()
 
     def get_collections_names(self):
-        collections = []
-        for collection in self.collections:
-            collections.append(collection['name'].encode('utf-8'))
-        return collections
+        sql = "SELECT name FROM sqlite_master WHERE type='table';"
 
-    def add_to_collection(self, collection_index, collection_key, datum):
-        if collection_key not in self.collections[collection_index]['data']:
-            self.collections[collection_index]['data'][collection_key] = datum
-            self.save_collection(self.collections[collection_index])
-        else:
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            tables = c.fetchall()
+        except Error as e:
+            print(e)
+
+        name = []
+        for table in tables:
+            name.append(table[0])
+
+        return name
+
+    def get_collection_name(self, index):
+        sql = "SELECT name FROM sqlite_master WHERE type='table';"
+
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            tables = c.fetchall()
+        except Error as e:
+            print(e)
+
+        return tables[index][0]
+
+    def add_to_collection(self, collection_index, datum):
+        collection = self.get_collection_name(collection_index)
+        c = self.collections.cursor()
+
+        for key, value in datum.items():
+            if value == '':
+                datum[key] = None
+
+        columns = ', '.join(datum.keys())
+        placeholders = ':'+', :'.join(datum.keys())
+        sql = 'INSERT INTO {} ({}) VALUES ({})'.format(collection, columns, placeholders)
+
+        c.execute(sql, datum)
+        self.collections.commit()
+        if c.lastrowid is None:
             return 0
-        return 1
+        else:
+            return 1
 
-    def save_to_collection(self, collection_index, collection_key, datum):
-        print(collection_index)
-        print(str('{:05d}'.format(collection_key)))
-        print(datum)
-        self.collections[collection_index]['data'][str('{:05d}'.format(collection_key))] = datum
-        self.save_collection(self.collections[collection_index])
-        return 1
+    def update_collection(self, collection_index, number, datum):
+        collection = self.get_collection_name(collection_index)
 
-    def load_collections(self):
-        collections_yaml = glob.glob("*.yaml")
-        collections = []
-        for collection in collections_yaml:
-            with open(collection, 'r') as stream:
-                try:
-                    collections.append(yaml.load(stream))
-                except yaml.YAMLError as exc:
-                    print(exc)
+        sql = "UPDATE {} SET ".format(collection)
+        for key, value in datum.items():
+            if isinstance(value, str):
+                if value == '':
+                    sql += "{} = NULL, ".format(key, value)
+                else:
+                    sql += "{} = '{}', ".format(key, value)
+            else:
+                sql += "{} = {}, ".format(key, value)
 
-        return collections
+        sql = sql[:-2]
+        sql += " WHERE number = {};".format(number)
 
-    def save_collection(self, collection):
-        with open('{}.yaml'.format(collection['name'].encode('utf-8')), 'w') as outfile:
-            yaml.dump(collection, outfile, default_flow_style=False, encoding=('utf-8'), allow_unicode=True)
+        c = self.collections.cursor()
+        c.execute(sql)
+        self.collections.commit()
+        return c.rowcount > 0
