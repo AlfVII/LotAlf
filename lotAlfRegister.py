@@ -7,6 +7,7 @@ from string import maketrans
 class Register():
     def __init__(self):
 
+        self.filters = {}
 
         try:
             self.collections = sqlite3.connect('collections.db')
@@ -157,3 +158,44 @@ class Register():
         c.execute(sql)
         self.collections.commit()
         return c.rowcount > 0
+
+    def get_filtered_data(self, collection_index, where_clause):
+        collection = self.get_collection_name(collection_index)
+        sql = "SELECT number FROM {} {};".format(collection, where_clause)
+
+        print(sql)
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            data = c.fetchall()
+        except Error as e:
+            print(e)
+
+        filtered_numbers = []
+        for datum in data:
+            filtered_numbers.append(datum[0])
+
+        return filtered_numbers
+
+
+    def apply_filters(self, collection):
+        where_clause = " WHERE "
+        empty = True
+        for key, value in self.filters.iteritems():
+            if value != '':
+                print(value)
+                empty = False
+                where_clause += value
+                where_clause += ' AND '
+
+        if where_clause[-5:] == ' AND ':
+            where_clause = where_clause[:-5]
+
+        if empty:
+            where_clause = ''
+
+        return self.get_filtered_data(collection, where_clause)
+
+
+    def set_filter(self, field, filter):
+        self.filters[field] = filter

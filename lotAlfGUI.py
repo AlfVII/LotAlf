@@ -3,6 +3,7 @@
 import wx
 import unicodedata
 import lotAlfRegister
+# import lotAlfPrinter
 
 class MenuPanel(wx.Panel):
     def __init__(self, parent, ID, dataPanel, register):
@@ -94,14 +95,17 @@ class DataPanel(wx.Panel):
 
 
 class ViewMenuPanel(wx.Panel):
-    def __init__(self, parent, ID):
+    def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
         sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.filters = {}
+        self.register = register
+        self.parent = parent
 
         legend_sizer = wx.BoxSizer(wx.VERTICAL)
 
         self.statuses = ['Perfecto', 'Roto', 'Doblado', 'Falta']
-        self.status_colors = [(0xF0,0x80,0x80), (0xCA,0xE1,0xFF), (0xA2,0xCD,0x5A), (0xFF,0xE7,0xBA)]
+        self.status_colors = [(0xA2,0xCD,0x5A), (0xF0,0x80,0x80), (0xCA,0xE1,0xFF), (0xFF,0xE7,0xBA)]
 
         perfect = wx.StaticText(self, -1, self.statuses[0])
         broken = wx.StaticText(self, -1, self.statuses[1])
@@ -119,20 +123,43 @@ class ViewMenuPanel(wx.Panel):
         legend_sizer.Add(missing, 0, wx.ALIGN_CENTER)
 
         filter_button = wx.Button(self, -1, 'Filtrar')
+        erase_button = wx.Button(self, wx.ID_ANY, "Borrar filtros")
 
         print_button = wx.Button(self, -1, 'Imprimir')
 
         sizer.Add(legend_sizer, 1, wx.ALIGN_CENTER)
         sizer.Add(filter_button, 1, wx.SHAPED)
+        sizer.Add(erase_button, 1, wx.SHAPED)
         sizer.Add(print_button, 1, wx.SHAPED)
+
+        self.Bind(wx.EVT_BUTTON, self.OnFilter, filter_button)
+        self.Bind(wx.EVT_BUTTON, self.OnErase, erase_button)
+        # self.Bind(wx.EVT_BUTTON, self.OnPrint, print_button)
 
         self.SetSizer(sizer)
 
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+    def OnFilter(self, event):
+        filters_dialog = FiltersDialog(self, -1, 'Filtros', self.collection, self.register)
+        filters_dialog.ShowModal()
+        self.parent.FilterNumbers(self.filtered_data)
+
+    def OnErase(self, event): 
+        self.parent.FilterNumbers(None)
+
+    # def OnPrint(self, event):
+    #     doc = lotAlfPrinter.DataToPdf('fields', self.filtered_data, sort_by=('size', 'DESC'),
+    #                     title='Log Files Over 1MB')
+    #     doc.export('LogFiles.pdf')
 
 class ViewPanel(wx.Panel):
     def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
         self.register = register
+        self.parent = parent
+        self.filtered_numbers = None
 
         sizer = wx.BoxSizer(wx.VERTICAL)
         self.collection = None
@@ -141,7 +168,7 @@ class ViewPanel(wx.Panel):
         button_width = total_height / 13
         button_height = total_height * 7 / 8 / 10
 
-        self.viewMenuPanel = ViewMenuPanel(self, -1)
+        self.viewMenuPanel = ViewMenuPanel(self, -1, self.register)
 
         numbers_sizer = wx.BoxSizer(wx.HORIZONTAL)
 
@@ -214,7 +241,13 @@ class ViewPanel(wx.Panel):
 
     def UpdateCollection(self, collection):
         self.collection = collection
+        self.viewMenuPanel.UpdateCollection(collection)
         self.collection_text.SetLabel(self.register.get_collections_names()[collection])
+
+    def FilterNumbers(self, numbers):
+        self.filtered_numbers = numbers
+        self.UpdateNumbers(0, 0)
+
 
     def UpdateNumbers(self, unit, number):
 
@@ -230,10 +263,14 @@ class ViewPanel(wx.Panel):
                 if button.unit == 1:
                     temp_number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + button.number
                     number_data = self.register.get_number_data(self.collection, temp_number)
-                    if number_data is not None:
-                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index(number_data['status'])])
+                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index(number_data['status'])])
+                    if self.filtered_numbers is not None:
+                        if temp_number in self.filtered_numbers:
+                            button.Show()
+                        else:
+                            button.Hide()
                     else:
-                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index('Falta')])
+                        button.Show()
 
 
         self.number.SetLabel('Centena: {:05d}'.format(self.current_ten_thousands + self.current_thousands + self.current_hundreds))
@@ -295,6 +332,7 @@ class StartPanel(wx.Panel):
     def NewCollection(self, event):
         newCollectionDialog = NewCollectionDialog(self, -1, 'Nueva Colección', self.register)
         newCollectionDialog.ShowModal()
+
 
 class NewCollectionDialog(wx.Dialog):
     def __init__(self, parent, id, title, register):
@@ -498,6 +536,304 @@ class NumberDialog(wx.Dialog):
         self.SetSizer(sizer)
 
         load()
+
+
+class FiltersDialog(wx.Dialog):
+    def __init__(self, parent, id, title, collection, register):
+        # begin wxGlade: MyDialog.__init__
+        self.collection = collection
+        self.register = register
+        self.parent = parent
+
+        wx.Dialog.__init__(self, parent, id, title)
+        self.checkbox_status = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_status = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.operation_status_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Estado es", "Estado no es"], style=wx.CB_DROPDOWN)
+        self.statuses_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Perfecto", "Roto", "Doblado", "Falta"], style=wx.CB_DROPDOWN)
+        self.checkbox_year = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_year = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.operation_year_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=[u"En el año", u"Antes del año", u"Despues del año", u"Entre los años", u"Fuera de los años"], style=wx.CB_DROPDOWN)
+        self.first_year_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.second_year_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.checkbox_coin = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_coin = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.operation_coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Moneda es", "Moned no es"], style=wx.CB_DROPDOWN)
+        self.coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Euro", "Peseta"], style=wx.CB_DROPDOWN)
+        self.checkbox_lot = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_lot = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.lot_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.checkbox_origin = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_origin = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.origin_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.checkbox_copies = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_copies = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.copies_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.checkbox_administration = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
+        self.checkbox_not_empty_administration = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
+        self.province_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.town_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.number_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
+        self.ApplyButton = wx.Button(self, wx.ID_ANY, "Aplicar filtro")
+        self.CancelButton = wx.Button(self, wx.ID_ANY, "Cancelar")
+
+        self.__set_properties()
+        self.__do_layout()
+
+        self.Bind(wx.EVT_CHECKBOX, self.OnEnable)
+        self.Bind(wx.EVT_COMBOBOX, self.OnUpdate)
+        self.Bind(wx.EVT_TEXT_ENTER, self.OnUpdate)
+        self.Bind(wx.EVT_BUTTON, self.OnApply, self.ApplyButton)
+        self.Bind(wx.EVT_BUTTON, self.OnCancel, self.CancelButton)
+        # end wxGlade
+
+    def __set_properties(self):
+        # begin wxGlade: MyDialog.__set_properties
+        self.SetTitle("Filtrado")
+
+        self.checkbox_status.filter = 'status'
+        self.checkbox_not_empty_status.filter = 'status'
+        self.checkbox_year.filter = 'year'
+        self.checkbox_not_empty_year.filter = 'year'
+        self.checkbox_coin.filter = 'coin'
+        self.checkbox_not_empty_coin.filter = 'coin'
+        self.checkbox_lot.filter = 'lot'
+        self.checkbox_not_empty_lot.filter = 'lot'
+        self.checkbox_origin.filter = 'origin'
+        self.checkbox_not_empty_origin.filter = 'origin'
+        self.checkbox_copies.filter = 'copies'
+        self.checkbox_not_empty_copies.filter = 'copies'
+        self.checkbox_administration.filter = 'administration'
+        self.checkbox_not_empty_administration.filter = 'administration'
+
+        self.operation_status_combo_box.Enable(False)
+        self.operation_status_combo_box.SetSelection(0)
+        self.statuses_combo_box.Enable(False)
+        self.statuses_combo_box.SetSelection(0)
+        self.operation_year_combo_box.Enable(False)
+        self.operation_year_combo_box.SetSelection(0)
+        self.first_year_text_ctrl.Enable(False)
+        self.second_year_text_ctrl.Enable(False)
+        self.operation_coin_combo_box.Enable(False)
+        self.operation_coin_combo_box.SetSelection(0)
+        self.coin_combo_box.Enable(False)
+        self.coin_combo_box.SetSelection(0)
+        self.lot_text_ctrl.Enable(False)
+        self.origin_text_ctrl.Enable(False)
+        self.copies_text_ctrl.Enable(False)
+        self.province_text_ctrl.Enable(False)
+        self.town_text_ctrl.Enable(False)
+        self.number_text_ctrl.Enable(False)
+        self.checkbox_not_empty_status.Enable(False)
+        self.checkbox_not_empty_year.Enable(False)
+        self.checkbox_not_empty_coin.Enable(False)
+        self.checkbox_not_empty_lot.Enable(False)
+        self.checkbox_not_empty_origin.Enable(False)
+        self.checkbox_not_empty_copies.Enable(False)
+        self.checkbox_not_empty_administration.Enable(False)
+        self.checkbox_not_empty_status.SetValue(1)
+        self.checkbox_not_empty_year.SetValue(1)
+        self.checkbox_not_empty_coin.SetValue(1)
+        self.checkbox_not_empty_lot.SetValue(1)
+        self.checkbox_not_empty_origin.SetValue(1)
+        self.checkbox_not_empty_copies.SetValue(1)
+        self.checkbox_not_empty_administration.SetValue(1)
+        # end wxGlade
+        # end wxGlade
+
+    def __do_layout(self):
+        # begin wxGlade: FiltersDialog.__do_layout
+        filters_sizer = wx.BoxSizer(wx.VERTICAL)
+        buttons_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        administration_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, u"Filtrar por administración"), wx.HORIZONTAL)
+        copies_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, u"Filtrar por numero mínimo de copias"), wx.HORIZONTAL)
+        origin_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Filtrar por origen"), wx.HORIZONTAL)
+        lot_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Filtrar por sorteo"), wx.HORIZONTAL)
+        coin_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Filtrar por moneda"), wx.HORIZONTAL)
+        year_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, u"Filtrar por año"), wx.HORIZONTAL)
+        status_sizer = wx.StaticBoxSizer(wx.StaticBox(self, wx.ID_ANY, "Filtrar por estado"), wx.HORIZONTAL)
+        instructions_sizer = wx.BoxSizer(wx.HORIZONTAL)
+        self.sizers = {'administration' : administration_sizer,
+                       'copies' : copies_sizer,
+                       'origin' : origin_sizer,
+                       'lot' : lot_sizer,
+                       'coin' : coin_sizer,
+                       'year' : year_sizer,
+                       'status' : status_sizer}
+
+        Filtro = wx.StaticText(self, wx.ID_ANY, u"Para usar los filtros, seleccione el boton de habilitar de los filtros deseados, ponga las opciones deseadas y pulse \"Aplicar filtro\".\nPara volver a ver todos los números pulse \"Borrar filtros\".", style=wx.ALIGN_CENTER)
+        instructions_sizer.Add(Filtro, 1, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 0)
+        filters_sizer.Add(instructions_sizer, 1, wx.EXPAND, 0)
+        status_sizer.Add(self.checkbox_status, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        status_sizer.Add(self.checkbox_not_empty_status, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        status_sizer.Add(self.operation_status_combo_box, 6, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        status_sizer.Add(self.statuses_combo_box, 6, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(status_sizer, 1, wx.EXPAND, 0)
+        year_sizer.Add(self.checkbox_year, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        year_sizer.Add(self.checkbox_not_empty_year, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        year_sizer.Add(self.operation_year_combo_box, 4, wx.ALIGN_CENTER | wx.ALL, 10)
+        year_sizer.Add(self.first_year_text_ctrl, 4, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        year_sizer.Add(self.second_year_text_ctrl, 4, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(year_sizer, 1, wx.EXPAND, 0)
+        coin_sizer.Add(self.checkbox_coin, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        coin_sizer.Add(self.checkbox_not_empty_coin, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        coin_sizer.Add(self.operation_coin_combo_box, 6, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        coin_sizer.Add(self.coin_combo_box, 6, wx.ALIGN_CENTER | wx.ALL, 10)
+        filters_sizer.Add(coin_sizer, 1, wx.EXPAND, 0)
+        lot_sizer.Add(self.checkbox_lot, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        lot_sizer.Add(self.checkbox_not_empty_lot, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        lot_sizer.Add(self.lot_text_ctrl, 12, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(lot_sizer, 1, wx.EXPAND, 0)
+        origin_sizer.Add(self.checkbox_origin, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        origin_sizer.Add(self.checkbox_not_empty_origin, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        origin_sizer.Add(self.origin_text_ctrl, 12, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(origin_sizer, 1, wx.EXPAND, 0)
+        copies_sizer.Add(self.checkbox_copies, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        copies_sizer.Add(self.checkbox_not_empty_copies, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        copies_sizer.Add(self.copies_text_ctrl, 12, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(copies_sizer, 1, wx.EXPAND, 0)
+        administration_sizer.Add(self.checkbox_administration, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        administration_sizer.Add(self.checkbox_not_empty_administration, 0, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        administration_sizer.Add(self.province_text_ctrl, 4, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        administration_sizer.Add(self.town_text_ctrl, 4, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        administration_sizer.Add(self.number_text_ctrl, 4, wx.ALIGN_CENTER | wx.LEFT | wx.RIGHT, 10)
+        filters_sizer.Add(administration_sizer, 1, wx.EXPAND, 0)
+        buttons_sizer.Add(self.ApplyButton, 1, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 10)
+        buttons_sizer.Add(self.CancelButton, 1, wx.ALIGN_CENTER | wx.ALL | wx.EXPAND, 10)
+        filters_sizer.Add(buttons_sizer, 1, wx.EXPAND, 0)
+        self.SetSizer(filters_sizer)
+        filters_sizer.Fit(self)
+        self.Layout()
+        # end wxGlade
+
+    def CaptureData(self):
+
+        if self.checkbox_status.GetValue():
+            if not self.checkbox_not_empty_status.GetValue():
+                self.register.set_filter('status', "status is NULL")
+            else:
+                operation = '=' if self.operation_status_combo_box.GetSelection() == 0 else '!='
+                status = self.statuses_combo_box.GetStringSelection()
+                self.register.set_filter('status', "status {} \'{}\'".format(operation, status))
+        else:
+            self.register.set_filter('status', '')
+
+        if self.checkbox_year.GetValue():
+            first_year = self.first_year_text_ctrl.GetValue()
+            second_year = self.second_year_text_ctrl.GetValue()
+            if not self.checkbox_not_empty_year.GetValue():
+                self.register.set_filter('year', "year is NULL")
+            elif first_year == '':
+                self.register.set_filter('year', "year is not NULL")
+            else:
+                if self.operation_year_combo_box.GetSelection() == 0:
+                    self.register.set_filter('year', "year = {}".format(first_year))
+                elif self.operation_year_combo_box.GetSelection() == 1:
+                    self.register.set_filter('year', "year < {}".format(first_year))
+                elif self.operation_year_combo_box.GetSelection() == 2:
+                    self.register.set_filter('year', "year > {}".format(first_year))
+                elif self.operation_year_combo_box.GetSelection() == 3:
+                    self.register.set_filter('year', "year >= {} AND year <= {}".format(first_year, second_year))
+                elif self.operation_year_combo_box.GetSelection() == 4:
+                    self.register.set_filter('year', "year < {} AND year > {}".format(first_year, second_year))
+        else:
+            self.register.set_filter('year', '')
+
+        if self.checkbox_coin.GetValue():
+            coin = self.coin_combo_box.GetStringSelection()
+            if not self.checkbox_not_empty_coin.GetValue():
+                self.register.set_filter('coin', "coin is NULL")
+            elif coin == '':
+                self.register.set_filter('coin', "coin is not NULL")
+            else:
+                operation = '=' if self.operation_coin_combo_box.GetSelection() == 0 else '!='
+                self.register.set_filter('coin', "coin {} \'{}\'".format(operation, coin))
+        else:
+            self.register.set_filter('coin', '')
+
+        if self.checkbox_lot.GetValue():
+            lot = self.lot_text_ctrl.GetValue()
+            if not self.checkbox_not_empty_lot.GetValue():
+                self.register.set_filter('lot', "lot is NULL")
+            elif lot == '':
+                self.register.set_filter('lot', "lot is not NULL")
+            else:
+                self.register.set_filter('lot', "lot LIKE %{}%".format(lot))
+        else:
+            self.register.set_filter('lot', '')
+
+        if self.checkbox_origin.GetValue():
+            origin = self.origin_text_ctrl.GetValue()
+            if not self.checkbox_not_empty_origin.GetValue():
+                self.register.set_filter('origin', "origin is NULL")
+            elif origin == '':
+                self.register.set_filter('origin', "origin is not NULL")
+            else:
+                self.register.set_filter('origin', "origin LIKE %{}%".format(origin))
+        else:
+            self.register.set_filter('origin', '')
+
+        if self.checkbox_copies.GetValue():
+            copies = self.copies_text_ctrl.GetValue()
+            if not self.checkbox_not_empty_copies.GetValue():
+                self.register.set_filter('copies', "copies is NULL")
+            elif copies == '':
+                self.register.set_filter('copies', "copies is not NULL")
+            else:
+                self.register.set_filter('copies', "copies > {}".format(copies))
+        else:
+            self.register.set_filter('copies', '')
+
+        if self.checkbox_administration.GetValue():
+            province = self.province_text_ctrl.GetValue()
+            town = self.town_text_ctrl.GetValue()
+            number = self.number_text_ctrl.GetValue()
+            if not self.checkbox_not_empty_administration.GetValue():
+                self.register.set_filter('administration', "(administration_province is NULL OR administration_town is NULL OR administration_number is NULL)")
+            elif province == '' and town == '' and number == '':
+                self.register.set_filter('administration', "administration is not NULL")
+            else:
+                query = ''
+                if province != '':
+                    query += "administration_province LIKE \%{}\% AND ".format(province)
+                if town != '':
+                    query += " administration_town LIKE \%{}\% AND ".format(town)
+                if number != '':
+                    query += " administration_number LIKE \%{}\% AND ".format(number)
+
+                if query[-5:] == ' AND ':
+                    query = query[:-5]
+                query = '(' + query + ')'
+                print(query)
+                self.register.set_filter('administration', query)
+        else:
+            self.register.set_filter('administration', '')
+
+    def OnEnable(self, event):  # wxGlade: MyDialog.<event_handler>
+        cb = event.GetEventObject()
+
+        sizer = self.sizers[cb.filter]
+
+        children = []
+        for child in sizer.GetChildren():
+            children.append(child.GetWindow())
+        cb_index = children.index(cb)
+
+        for index in range(cb_index + 1, len(sizer.GetChildren())):
+            sizer.GetChildren()[index].GetWindow().Enable(cb.GetValue())
+        self.CaptureData() 
+
+    def OnUpdate(self, event):  # wxGlade: FiltersDialog.<event_handler>
+        # event.Skip()
+        self.CaptureData()
+
+    def OnApply(self, event):  # wxGlade: MyDialog.<event_handler>
+        self.CaptureData()
+        self.parent.filtered_data = self.register.apply_filters(self.collection)
+        self.Destroy()
+
+
+    def OnCancel(self, event):  # wxGlade: MyDialog.<event_handler>
+        self.Destroy()
 
 
 class AddPanel(wx.Panel):
