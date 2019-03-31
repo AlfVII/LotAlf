@@ -5,6 +5,9 @@ import unicodedata
 import lotAlfRegister
 # import lotAlfPrinter
 
+
+statuses = ['Perfecto', 'Defectuoso', 'Falta']
+
 class MenuPanel(wx.Panel):
     def __init__(self, parent, ID, dataPanel, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
@@ -104,22 +107,18 @@ class ViewMenuPanel(wx.Panel):
 
         legend_sizer = wx.BoxSizer(wx.VERTICAL)
 
-        self.statuses = ['Perfecto', 'Roto', 'Doblado', 'Falta']
-        self.status_colors = [(0xA2,0xCD,0x5A), (0xF0,0x80,0x80), (0xCA,0xE1,0xFF), (0xFF,0xE7,0xBA)]
+        self.status_colors = [(0xA2,0xCD,0x5A), (0xF0,0x80,0x80), (0xFF,0xE7,0xBA)]
 
-        perfect = wx.StaticText(self, -1, self.statuses[0])
-        broken = wx.StaticText(self, -1, self.statuses[1])
-        bent = wx.StaticText(self, -1, self.statuses[2])
-        missing = wx.StaticText(self, -1, self.statuses[3])
+        perfect = wx.StaticText(self, -1, statuses[0])
+        defective = wx.StaticText(self, -1, statuses[1])
+        missing = wx.StaticText(self, -1, statuses[2])
 
         perfect.SetBackgroundColour(self.status_colors[0])
-        broken.SetBackgroundColour(self.status_colors[1])
-        bent.SetBackgroundColour(self.status_colors[2])
-        missing.SetBackgroundColour(self.status_colors[3])
+        defective.SetBackgroundColour(self.status_colors[1])
+        missing.SetBackgroundColour(self.status_colors[2])
 
         legend_sizer.Add(perfect, 0, wx.ALIGN_CENTER)
-        legend_sizer.Add(broken, 0, wx.ALIGN_CENTER)
-        legend_sizer.Add(bent, 0, wx.ALIGN_CENTER)
+        legend_sizer.Add(defective, 0, wx.ALIGN_CENTER)
         legend_sizer.Add(missing, 0, wx.ALIGN_CENTER)
 
         filter_button = wx.Button(self, -1, 'Filtrar')
@@ -220,12 +219,15 @@ class ViewPanel(wx.Panel):
 
 
         self.number = wx.StaticText(self, -1, 'Centena: 00000')
+        self.filtered_count = wx.StaticText(self, -1, 'Números que cumplen el filtro: 100000')
         self.collection_text = wx.StaticText(self, -1, '')
 
         sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 10)
         sizer.Add(self.collection_text, 1, wx.ALL | wx.ALIGN_CENTER)
         sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 10)
         sizer.Add(self.viewMenuPanel, 1, wx.EXPAND |wx.ALL, 10)
+        sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 10)
+        sizer.Add(self.filtered_count, 1, wx.ALL | wx.ALIGN_CENTER)
         sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 10)
         sizer.Add(self.number, 1, wx.ALL | wx.ALIGN_CENTER)
         sizer.Add(wx.StaticLine(self, -1, style=wx.LI_HORIZONTAL), 1, wx.EXPAND | wx.ALL, 10)
@@ -246,6 +248,8 @@ class ViewPanel(wx.Panel):
 
     def FilterNumbers(self, numbers):
         self.filtered_numbers = numbers
+        self.filtered_count.SetLabel('Números que cumplen el filtro: {:05d}'.format(len(numbers)))
+        print(len(numbers))
         self.UpdateNumbers(0, 0)
 
 
@@ -263,7 +267,7 @@ class ViewPanel(wx.Panel):
                 if button.unit == 1:
                     temp_number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + button.number
                     number_data = self.register.get_number_data(self.collection, temp_number)
-                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[self.viewMenuPanel.statuses.index(number_data['status'])])
+                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[statuses.index(number_data['status'])])
                     if self.filtered_numbers is not None:
                         if temp_number in self.filtered_numbers:
                             button.Show()
@@ -458,7 +462,6 @@ class NumberDialog(wx.Dialog):
                     administration_number_textctrl.SetValue(number_data['administration_number'])
 
 
-        statuses = ['Perfecto', 'Roto', 'Doblado', 'Falta']
         status_sizer = wx.BoxSizer(wx.HORIZONTAL)
         status_statictext = wx.StaticText(self, -1, 'Estado: ', size=(100, 20))
         status_combobox = wx.ComboBox(self, -1, choices=statuses, style=wx.CB_READONLY,  size=(100, 20))
@@ -549,7 +552,7 @@ class FiltersDialog(wx.Dialog):
         self.checkbox_status = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
         self.checkbox_not_empty_status = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
         self.operation_status_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Estado es", "Estado no es"], style=wx.CB_DROPDOWN)
-        self.statuses_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Perfecto", "Roto", "Doblado", "Falta"], style=wx.CB_DROPDOWN)
+        self.statuses_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=statuses, style=wx.CB_DROPDOWN)
         self.checkbox_year = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
         self.checkbox_not_empty_year = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
         self.operation_year_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=[u"En el año", u"Antes del año", u"Despues del año", u"Entre los años", u"Fuera de los años"], style=wx.CB_DROPDOWN)
@@ -880,7 +883,6 @@ class AddPanel(wx.Panel):
         number_sizer.Add(number_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
         number_sizer.Add(number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
 
-        statuses = ['Perfecto', 'Roto', 'Doblado', 'Falta']
         status_sizer = wx.BoxSizer(wx.HORIZONTAL)
         status_statictext = wx.StaticText(self, -1, 'Estado: ', size=(100, 20))
         status_combobox = wx.ComboBox(self, -1, choices=statuses, style=wx.CB_READONLY,  size=(100, 20))

@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import glob
 import sqlite3
+import os
 from sqlite3 import Error
 from string import maketrans
 
@@ -9,8 +10,10 @@ class Register():
 
         self.filters = {}
 
+        print(os.path.expanduser('~/collections.db'))
+
         try:
-            self.collections = sqlite3.connect('collections.db')
+            self.collections = sqlite3.connect(os.path.expanduser('~/collections.db'))
             self.collections.text_factory = str
         except Error as e:
             print(e)
