@@ -153,6 +153,52 @@ class ViewMenuPanel(wx.Panel):
     #                     title='Log Files Over 1MB')
     #     doc.export('LogFiles.pdf')
 
+class ViewPanelFilteredList(wx.Panel):
+    def __init__(self,  parent, ID):
+        # begin wxGlade: MyDialog.__init__
+        # kwds["style"] = kwds.get("style", 0) | wx.TAB_TRAVERSAL
+        wx.Panel.__init__(self,  parent, ID)
+        self.parent = parent
+        self.filter_list = wx.ListCtrl(self, wx.ID_ANY, size = (10,10), style=wx.BORDER_DEFAULT | wx.FULL_REPAINT_ON_RESIZE | wx.LC_AUTOARRANGE | wx.LC_HRULES | wx.LC_REPORT | wx.LC_VRULES | wx.LC_NO_HEADER)
+
+        self.__set_properties()
+        self.__do_layout()
+
+        self.Bind(wx.EVT_LIST_ITEM_ACTIVATED, self.OnDoubleClick, self.filter_list)
+        # end wxGlade
+
+    def __set_properties(self):
+        # begin wxGlade: MyDialog.__set_properties
+        self.filter_list.AppendColumn("Number", format=wx.LIST_FORMAT_LEFT)
+        # end wxGlade
+
+    def __do_layout(self):
+        # begin wxGlade: MyDialog.__do_layout
+        sizer_1 = wx.BoxSizer(wx.VERTICAL)
+        filtered_numbers_label = wx.StaticText(self, wx.ID_ANY, u"Números")
+        sizer_1.Add(filtered_numbers_label, 0, wx.ALIGN_CENTER)
+        sizer_1.Add(self.filter_list, 10, wx.EXPAND, 0)
+        self.SetSizer(sizer_1)
+        sizer_1.Fit(self)
+        self.Layout()
+        # end wxGlade
+
+    def OnDoubleClick(self, event): 
+        number = event.GetText()
+        self.parent.SetNumber(int(number))
+        numberdialog = NumberDialog(self, -1, 'Número {}'.format(number), self.parent.register, self.parent.collection, number)
+        numberdialog.ShowModal()
+
+        self.parent.UpdateNumbers(1, number)
+
+    def SetFilteredNumbers(self, numbers):
+        for number in numbers:
+            self.filter_list.Append([number])
+
+    def ClearList(self):
+        self.filter_list.DeleteAllItems()
+
+
 class ViewPanel(wx.Panel):
     def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
@@ -211,11 +257,16 @@ class ViewPanel(wx.Panel):
                 self.all_buttons.append(button)
                 tens_buttons.append((button, 0, wx.EXPAND))
         tens_sizer.AddMany(tens_buttons)
+
+        self.viewPanelFilteredList = ViewPanelFilteredList(self, -1)
+
+        self.viewPanelFilteredList.Hide()
         
         numbers_sizer.Add(ten_thousands_sizer, 1, wx.EXPAND)
         numbers_sizer.Add(thousands_sizer, 1, wx.EXPAND)
         numbers_sizer.Add(hundreds_sizer, 1, wx.EXPAND)
         numbers_sizer.Add(tens_sizer, 10, wx.ALL, border=30)
+        numbers_sizer.Add(self.viewPanelFilteredList, 1, wx.ALL | wx.EXPAND, border=5)
 
 
         self.number = wx.StaticText(self, -1, 'Centena: 00000')
@@ -240,6 +291,7 @@ class ViewPanel(wx.Panel):
         self.current_ten_thousands = 0
         self.current_thousands = 0
         self.current_hundreds = 0
+        self.Layout()
 
     def UpdateCollection(self, collection):
         self.collection = collection
@@ -248,10 +300,26 @@ class ViewPanel(wx.Panel):
 
     def FilterNumbers(self, numbers):
         self.filtered_numbers = numbers
-        self.filtered_count.SetLabel('Números que cumplen el filtro: {:05d}'.format(len(numbers)))
-        print(len(numbers))
+        if numbers is not None:
+            self.filtered_count.SetLabel('Números que cumplen el filtro: {:05d}'.format(len(numbers)))
+            self.viewPanelFilteredList.SetFilteredNumbers(numbers)
+            self.viewPanelFilteredList.Show()
+            self.Layout()
+        
+        else:
+            self.filtered_count.SetLabel('Números que cumplen el filtro: {:05d}'.format(100000))
+            self.viewPanelFilteredList.ClearList()
+            self.viewPanelFilteredList.Hide()
+            self.Layout()
         self.UpdateNumbers(0, 0)
 
+
+    def SetNumber(self, number):
+        # Unsued for now
+        self.UpdateNumbers(10000, int(number / 10000) * 10000)
+        self.UpdateNumbers(1000, int(number % 10000 / 1000)  * 1000)
+        self.UpdateNumbers(100, int(number % 1000 / 100)  * 100)
+        self.UpdateNumbers(1, number)
 
     def UpdateNumbers(self, unit, number):
 
@@ -760,7 +828,7 @@ class FiltersDialog(wx.Dialog):
             elif lot == '':
                 self.register.set_filter('lot', "lot is not NULL")
             else:
-                self.register.set_filter('lot', "lot LIKE %{}%".format(lot))
+                self.register.set_filter('lot', "lot LIKE \'%{}%\'".format(lot))
         else:
             self.register.set_filter('lot', '')
 
@@ -771,7 +839,7 @@ class FiltersDialog(wx.Dialog):
             elif origin == '':
                 self.register.set_filter('origin', "origin is not NULL")
             else:
-                self.register.set_filter('origin', "origin LIKE %{}%".format(origin))
+                self.register.set_filter('origin', "origin LIKE \'%{}%\'".format(origin))
         else:
             self.register.set_filter('origin', '')
 
@@ -797,11 +865,11 @@ class FiltersDialog(wx.Dialog):
             else:
                 query = ''
                 if province != '':
-                    query += "administration_province LIKE \%{}\% AND ".format(province)
+                    query += "administration_province LIKE \'%{}%\' AND ".format(province)
                 if town != '':
-                    query += " administration_town LIKE \%{}\% AND ".format(town)
+                    query += " administration_town LIKE \'%{}%\' AND ".format(town)
                 if number != '':
-                    query += " administration_number LIKE \%{}\% AND ".format(number)
+                    query += " administration_number LIKE \'%{}%\' AND ".format(number)
 
                 if query[-5:] == ' AND ':
                     query = query[:-5]
