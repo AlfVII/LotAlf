@@ -477,7 +477,7 @@ class NumberDialog(wx.Dialog):
                     'status': str(status_combobox.GetStringSelection()),
                     'year': str(year_textctrl.GetValue()),
                     'coin': str(coin_textctrl.GetValue()),
-                    'lot': str(lot_textctrl.GetValue()),
+                    'lot': str(lot_textctrl.GetValue().encode('utf-8')),
                     'origin': str(origin_textctrl.GetValue()),
                     'copies': 1,
                     'administration_province': administration_province,
@@ -628,8 +628,8 @@ class FiltersDialog(wx.Dialog):
         self.second_year_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
         self.checkbox_coin = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
         self.checkbox_not_empty_coin = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
-        self.operation_coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Moneda es", "Moned no es"], style=wx.CB_DROPDOWN)
-        self.coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Euro", "Peseta"], style=wx.CB_DROPDOWN)
+        self.operation_coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["Moneda es", "Moneda no es"], style=wx.CB_DROPDOWN)
+        self.coin_combo_box = wx.ComboBox(self, wx.ID_ANY, choices=["EURO", "PESETA"], style=wx.CB_DROPDOWN)
         self.checkbox_lot = wx.CheckBox(self, wx.ID_ANY, "Habilitar", style=wx.ALIGN_RIGHT)
         self.checkbox_not_empty_lot = wx.CheckBox(self, wx.ID_ANY, "Rellenado", style=wx.ALIGN_RIGHT)
         self.lot_text_ctrl = wx.TextCtrl(self, wx.ID_ANY, "", style=wx.TE_PROCESS_ENTER)
@@ -822,7 +822,7 @@ class FiltersDialog(wx.Dialog):
             self.register.set_filter('coin', '')
 
         if self.checkbox_lot.GetValue():
-            lot = self.lot_text_ctrl.GetValue()
+            lot = self.lot_text_ctrl.GetValue().encode('utf-8')
             if not self.checkbox_not_empty_lot.GetValue():
                 self.register.set_filter('lot', "lot is NULL")
             elif lot == '':
@@ -833,7 +833,7 @@ class FiltersDialog(wx.Dialog):
             self.register.set_filter('lot', '')
 
         if self.checkbox_origin.GetValue():
-            origin = self.origin_text_ctrl.GetValue()
+            origin = self.origin_text_ctrl.GetValue().encode('utf-8')
             if not self.checkbox_not_empty_origin.GetValue():
                 self.register.set_filter('origin', "origin is NULL")
             elif origin == '':
@@ -855,8 +855,8 @@ class FiltersDialog(wx.Dialog):
             self.register.set_filter('copies', '')
 
         if self.checkbox_administration.GetValue():
-            province = self.province_text_ctrl.GetValue()
-            town = self.town_text_ctrl.GetValue()
+            province = self.province_text_ctrl.GetValue().encode('utf-8')
+            town = self.town_text_ctrl.GetValue().encode('utf-8')
             number = self.number_text_ctrl.GetValue()
             if not self.checkbox_not_empty_administration.GetValue():
                 self.register.set_filter('administration', "(administration_province is NULL OR administration_town is NULL OR administration_number is NULL)")
