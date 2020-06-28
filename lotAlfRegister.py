@@ -180,6 +180,24 @@ class Register():
 
         return filtered_numbers
 
+    def get_count_filtered_data(self, collection_index, column_name, where_clause='', group=True):
+        collection = self.get_collection_name(collection_index)
+        if group:
+            groupby_clause = " GROUP BY {0}".format(column_name)
+        else:
+            groupby_clause = ''
+        sql = "SELECT COUNT({0}) AS count_{0}, {0} FROM {1} {2} {3};".format(column_name, collection, where_clause, groupby_clause)
+
+        print(sql)
+        try:
+            c = self.collections.cursor()
+            c.execute(sql)
+            data = c.fetchall()
+        except Error as e:
+            print(e)
+
+        return data
+
 
     def apply_filters(self, collection):
         where_clause = " WHERE "

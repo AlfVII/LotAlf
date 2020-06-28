@@ -1,12 +1,26 @@
 # -*- coding: utf-8 -*-
 
 import wx
+import copy
+import numpy
 import unicodedata
 import lotAlfRegister
 # import lotAlfPrinter
-
+from numpy import arange, sin, pi
+import matplotlib
+matplotlib.use('WXAgg')
+from matplotlib.backends.backend_wxagg import FigureCanvasWxAgg as FigureCanvas
+from matplotlib.backends.backend_wx import NavigationToolbar2Wx
+from matplotlib.figure import Figure
+import matplotlib.pyplot as plt
+import datetime
 
 statuses = ['Perfecto', 'Defectuoso', 'Falta']
+coins = ['PESETA', 'EURO']
+initial_year = 1967
+maximum_lot = 103
+origins = ['ORDINARIO', 'NAVIDAD', 'EXTRAORDINARIO', 'ESPECIAL', 'NIÑO', 'ANTIGUO', 'JUEVES', 'ESCRITO']
+administration_province = ['ALBACETE', 'ALICANTE', 'ALMERÍA', 'ARABA', 'ASTURIAS', 'ÁVILA', 'BADAJOZ', 'BARCELONA', 'BIZKAIA', 'BURGOS', 'CANTABRIA', 'CASTELLÓN', 'CEUTA', 'CIUDAD REAL', 'CORUÑA (A)', 'CUENCA', 'CÁCERES', 'CÁDIZ', 'CÓRDOBA', 'GIPÚZKOA', 'GIRONA', 'GRAN CANARIA', 'GRANADA', 'GUADALAJARA', 'HUELVA', 'HUESCA', 'ISLAS BALEARES', 'JAÉN', 'LEÓN', 'LLEIDA', 'LUGO', 'MADRID', 'MELILLA', 'MURCIA', 'MÁLAGA', 'NAVARRA', 'OURENSE', 'PALENCIA', 'PALMAS (LAS)', 'PONTEVEDRA', 'RIOJA (LA)', 'SALAMANCA', 'SEGOVIA', 'SEVILLA', 'SORIA', 'TARRAGONA', 'TENERIFE', 'TERUEL', 'TOLEDO', 'VALENCIA', 'VALLADOLID', 'ZAMORA', 'ZARAGOZA']
 
 class MenuPanel(wx.Panel):
     def __init__(self, parent, ID, dataPanel, register):
@@ -85,6 +99,8 @@ class DataPanel(wx.Panel):
 
         self.pages = [addPanel, viewPanel, comparePanel, statisticsPanel, startPanel]
         self.SetPage(4, 0)
+
+        statisticsPanel.draw()
 
     def SetPage(self, enabled_page, collection):
         for page in self.pages:
@@ -463,10 +479,6 @@ class NumberDialog(wx.Dialog):
                 evt.GetEventObject().SetValue(evt.GetEventObject().default_text)
             evt.Skip()   
         def save(evt):
-
-            administration_province = administration_province_textctrl.GetValue().encode('utf-8')
-            if administration_province == administration_province_textctrl.default_text:
-                administration_province = ''
             administration_town = administration_town_textctrl.GetValue().encode('utf-8')
             if administration_town == administration_town_textctrl.default_text:
                 administration_town = ''
@@ -474,13 +486,13 @@ class NumberDialog(wx.Dialog):
             if administration_number == administration_number_textctrl.default_text:
                 administration_number = ''
             data = {'number': number,
-                    'status': str(status_combobox.GetStringSelection()),
-                    'year': str(year_textctrl.GetValue()),
-                    'coin': str(coin_textctrl.GetValue()),
-                    'lot': str(lot_textctrl.GetValue().encode('utf-8')),
-                    'origin': str(origin_textctrl.GetValue()),
+                    'status': str(status_combobox.GetStringSelection().encode('utf-8')),
+                    'year': str(year_combobox.GetValue()),
+                    'coin': str(coin_combobox.GetValue()),
+                    'lot': str(lot_combobox.GetStringSelection().encode('utf-8')) + '/' + str(year_combobox.GetValue())[-2:],
+                    'origin': str(origin_combobox.GetValue().encode('utf-8')),
                     'copies': 1,
-                    'administration_province': administration_province,
+                    'administration_province': str(administration_province_combobox.GetStringSelection().encode('utf-8')),
                     'administration_town': administration_town,
                     'administration_number': administration_number
                     }
@@ -501,25 +513,28 @@ class NumberDialog(wx.Dialog):
                 else:
                     status_combobox.SetSelection(status_combobox.FindString(number_data['status']))
                 if number_data['year'] == None:
-                        year_textctrl.SetValue('')
+                    pass
                 else:
-                    year_textctrl.SetValue(number_data['year'])
+                    year_combobox.SetSelection(year_combobox.FindString(number_data['year']))
+                    year_combobox.SetValue(number_data['year'])
                 if number_data['coin'] == None:
-                    coin_textctrl.SetValue('')
+                    pass
                 else:
-                    coin_textctrl.SetValue(number_data['coin'])
+                    coin_combobox.SetSelection(coin_combobox.FindString(number_data['coin']))
+                    coin_combobox.SetValue(number_data['coin'])
                 if number_data['lot'] == None:
-                    lot_textctrl.SetValue('')
+                    pass
                 else:
-                    lot_textctrl.SetValue(number_data['lot'])
+                    lot_combobox.SetSelection(lot_combobox.FindString(number_data['lot'].split('/')[0]))
                 if number_data['origin'] == None:
-                    origin_textctrl.SetValue('')
+                    origin_combobox.SetValue('')
                 else:
-                    origin_textctrl.SetValue(number_data['origin'])
+                    origin_combobox.SetSelection(origin_combobox.FindString(number_data['origin']))
+                    origin_combobox.SetValue(number_data['origin'])
                 if number_data['administration_province'] == None:
-                    administration_province_textctrl.SetValue('')
+                    pass
                 else:
-                    administration_province_textctrl.SetValue(number_data['administration_province'])
+                    administration_province_combobox.SetSelection(administration_province_combobox.FindString(number_data['administration_province']))
                 if number_data['administration_town'] == None:
                     administration_town_textctrl.SetValue('')
                 else:
@@ -536,24 +551,23 @@ class NumberDialog(wx.Dialog):
         status_sizer.Add(status_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
         status_sizer.Add(status_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
+        years = [str(x) for x in range(initial_year, datetime.datetime.now().year + 1)]
         year_sizer = wx.BoxSizer(wx.HORIZONTAL)
         year_statictext = wx.StaticText(self, -1, 'Año: ', size=(100, 20))
-        year_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        year_combobox = wx.ComboBox(self, -1, choices=years, style=wx.CB_READONLY,  size=(100, 20))
         year_sizer.Add(year_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        year_sizer.Add(year_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        year_sizer.Add(year_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         coin_sizer = wx.BoxSizer(wx.HORIZONTAL)
         coin_statictext = wx.StaticText(self, -1, 'Moneda: ', size=(100, 20))
-        coin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        coin_combobox = wx.ComboBox(self, -1, choices=coins, style=wx.CB_READONLY,  size=(100, 20))
         coin_sizer.Add(coin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        coin_sizer.Add(coin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        coin_sizer.Add(coin_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         administration_sizer = wx.BoxSizer(wx.HORIZONTAL)
         administration_statictext = wx.StaticText(self, -1, 'Administración', size=(100, 20))
-        administration_province_textctrl = wx.TextCtrl(self, -1, 'Provincia', size=(100, 20))
-        administration_province_textctrl.default_text = 'Provincia'
-        administration_province_textctrl.Bind(wx.EVT_SET_FOCUS, toggle1)
-        administration_province_textctrl.Bind(wx.EVT_KILL_FOCUS, toggle2)
+        administration_province_combobox = wx.ComboBox(self, -1, choices=administration_province, style=wx.CB_READONLY,  size=(100, 20))
+
         administration_town_textctrl = wx.TextCtrl(self, -1, 'Municipio', size=(200, 20))
         administration_town_textctrl.default_text = 'Municipio'
         administration_town_textctrl.Bind(wx.EVT_SET_FOCUS, toggle1)
@@ -563,21 +577,22 @@ class NumberDialog(wx.Dialog):
         administration_number_textctrl.Bind(wx.EVT_SET_FOCUS, toggle1)
         administration_number_textctrl.Bind(wx.EVT_KILL_FOCUS, toggle2)
         administration_sizer.Add(administration_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        administration_sizer.Add(administration_province_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        administration_sizer.Add(administration_province_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
 
+        lots = [str(x) for x in range(0, maximum_lot + 1)]
         lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
         lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
-        lot_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        lot_combobox = wx.ComboBox(self, -1, choices=lots, style=wx.CB_READONLY,  size=(100, 20))
         lot_sizer.Add(lot_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        lot_sizer.Add(lot_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        lot_sizer.Add(lot_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         origin_sizer = wx.BoxSizer(wx.HORIZONTAL)
         origin_statictext = wx.StaticText(self, -1, 'Origen: ', size=(100, 20))
-        origin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        origin_combobox = wx.ComboBox(self, -1, choices=origins, style=wx.CB_READONLY,  size=(100, 20))
         origin_sizer.Add(origin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        origin_sizer.Add(origin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        origin_sizer.Add(origin_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         copies_sizer = wx.BoxSizer(wx.HORIZONTAL)
         copies_statictext = wx.StaticText(self, -1, 'Copias: ', size=(100, 20))
@@ -923,9 +938,6 @@ class AddPanel(wx.Panel):
                 evt.GetEventObject().SetValue(evt.GetEventObject().default_text)
             evt.Skip() 
         def add(evt):
-            administration_province = administration_province_textctrl.GetValue().encode('utf-8')
-            if administration_province == administration_province_textctrl.default_text:
-                administration_province = ''
             administration_town = administration_town_textctrl.GetValue().encode('utf-8')
             if administration_town == administration_town_textctrl.default_text:
                 administration_town = ''
@@ -933,13 +945,13 @@ class AddPanel(wx.Panel):
             if administration_number == administration_number_textctrl.default_text:
                 administration_number = ''
             data = {'number': int(number_textctrl.GetValue()),
-                    'status': str(status_combobox.GetStringSelection()),
-                    'year': str(year_textctrl.GetValue()),
-                    'coin': str(coin_textctrl.GetValue()),
-                    'lot': str(''),
-                    'origin': str(''),
+                    'status': str(status_combobox.GetStringSelection().encode('utf-8')),
+                    'year': str(year_combobox.GetValue()),
+                    'coin': str(coin_combobox.GetValue()),
+                    'lot': str(lot_combobox.GetStringSelection()) + '/' + str(year_combobox.GetValue())[-2:],
+                    'origin': str(origin_combobox.GetValue().encode('utf-8')),
                     'copies': 1,
-                    'administration_province': administration_province,
+                    'administration_province': str(administration_province_combobox.GetStringSelection().encode('utf-8')),
                     'administration_town': administration_town,
                     'administration_number': administration_number
                     }
@@ -957,24 +969,24 @@ class AddPanel(wx.Panel):
         status_sizer.Add(status_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
         status_sizer.Add(status_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
+        years = [str(x) for x in range(initial_year, datetime.datetime.now().year + 1)]
         year_sizer = wx.BoxSizer(wx.HORIZONTAL)
         year_statictext = wx.StaticText(self, -1, 'Año: ', size=(100, 20))
-        year_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        year_combobox = wx.ComboBox(self, -1, choices=years, style=wx.CB_READONLY,  size=(100, 20))
         year_sizer.Add(year_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        year_sizer.Add(year_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        year_sizer.Add(year_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         coin_sizer = wx.BoxSizer(wx.HORIZONTAL)
         coin_statictext = wx.StaticText(self, -1, 'Moneda: ', size=(100, 20))
-        coin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        coin_combobox = wx.ComboBox(self, -1, choices=coins, style=wx.CB_READONLY,  size=(100, 20))
         coin_sizer.Add(coin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        coin_sizer.Add(coin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        coin_sizer.Add(coin_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         administration_sizer = wx.BoxSizer(wx.HORIZONTAL)
         administration_statictext = wx.StaticText(self, -1, 'Administración', size=(100, 20))
-        administration_province_textctrl = wx.TextCtrl(self, -1, 'Provincia', size=(100, 20))
-        administration_province_textctrl.default_text = 'Provincia'
-        administration_province_textctrl.Bind(wx.EVT_SET_FOCUS,toggle1)
-        administration_province_textctrl.Bind(wx.EVT_KILL_FOCUS,toggle2)
+
+        administration_province_combobox = wx.ComboBox(self, -1, choices=administration_province, style=wx.CB_READONLY,  size=(100, 20))
+
         administration_town_textctrl = wx.TextCtrl(self, -1, 'Municipio', size=(100, 20))
         administration_town_textctrl.default_text = 'Municipio'
         administration_town_textctrl.Bind(wx.EVT_SET_FOCUS,toggle1)
@@ -984,22 +996,22 @@ class AddPanel(wx.Panel):
         administration_number_textctrl.Bind(wx.EVT_SET_FOCUS,toggle1)
         administration_number_textctrl.Bind(wx.EVT_KILL_FOCUS,toggle2)
         administration_sizer.Add(administration_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        administration_sizer.Add(administration_province_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        administration_sizer.Add(administration_province_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         
-
+        lots = [str(x) for x in range(0, maximum_lot + 1)]
         lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
         lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
-        lot_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        lot_combobox = wx.ComboBox(self, -1, choices=lots, style=wx.CB_READONLY,  size=(100, 20))
         lot_sizer.Add(lot_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        lot_sizer.Add(lot_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        lot_sizer.Add(lot_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         origin_sizer = wx.BoxSizer(wx.HORIZONTAL)
         origin_statictext = wx.StaticText(self, -1, 'Origen: ', size=(100, 20))
-        origin_textctrl = wx.TextCtrl(self, -1, '', size=(100, 20))
+        origin_combobox = wx.ComboBox(self, -1, choices=origins, style=wx.CB_READONLY,  size=(100, 20))
         origin_sizer.Add(origin_statictext, 1, wx.ALL | wx.ALIGN_CENTER)
-        origin_sizer.Add(origin_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
+        origin_sizer.Add(origin_combobox, 1, wx.ALL | wx.ALIGN_CENTER)
 
         copies_sizer = wx.BoxSizer(wx.HORIZONTAL)
         copies_statictext = wx.StaticText(self, -1, 'Copias: ', size=(100, 20))
@@ -1048,6 +1060,113 @@ class StatisticsPanel(wx.Panel):
     def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
         self.text = wx.StaticText(self, -1, 'StatisticsPanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        subsizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.Layout()
+
+        self.figure_provinces = Figure()
+        self.axes_provinces = self.figure_provinces.add_subplot(111)
+        canvas_provinces = FigureCanvas(self, -1, self.figure_provinces)
+        sizer.Add(canvas_provinces, 1, wx.RIGHT | wx.TOP | wx.EXPAND)
+
+        figure_status = Figure()
+        self.axes_status = figure_status.add_subplot(111)
+        canvas_status = FigureCanvas(self, -1, figure_status)
+        subsizer.Add(canvas_status, 1, wx.CENTER | wx.TOP)
+
+        figure_year = Figure()
+        self.axes_year = figure_year.add_subplot(111)
+        canvas_year = FigureCanvas(self, -1, figure_year)
+        subsizer.Add(canvas_year, 1, wx.LEFT | wx.TOP | wx.EXPAND)
+        sizer.Add(subsizer, 3, wx.LEFT | wx.TOP | wx.EXPAND)
+
+        # figure_lot = Figure()
+        # self.axes_lot = figure_lot.add_subplot(111)
+        # canvas_lot = FigureCanvas(self, -1, figure_lot)
+        # sizer.Add(canvas_lot, 1, wx.LEFT | wx.TOP | wx.EXPAND)
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+    def draw(self):
+        province_data = self.register.get_count_filtered_data(self.collection, 'administration_province')
+        counts = []
+        labels = []
+        for province_datum in province_data:
+            if province_datum[1] is not None:
+                counts.append(province_datum[0])
+                labels.append(province_datum[1])
+
+        t = arange(0.0, 3.0, 0.01)
+        s = sin(2 * pi * t)
+        self.axes_provinces.barh(labels, counts, 0.8, label='Provincias')
+        self.figure_provinces.tight_layout()
+
+
+        status_data = self.register.get_count_filtered_data(self.collection, 'status')
+        filled_data = self.register.get_count_filtered_data(self.collection, 'status', 'WHERE administration_province is not NULL AND year is not NULL AND coin is not NULL AND lot is not NULL AND origin is not NULL AND status = \'Perfecto\'', False)
+        unfilled_data = self.register.get_count_filtered_data(self.collection, 'status', 'WHERE (administration_province is NULL OR year is NULL OR coin is NULL OR lot is NULL OR origin is NULL) AND status = \'Perfecto\'', False)
+
+        counts_outer = []
+        labels_outer = []
+        for status_datum in status_data:
+            counts_outer.append(status_datum[0])
+            labels_outer.append(status_datum[1])
+        counts_inner = copy.deepcopy(counts_outer)[:-1]
+        labels_inner = []
+        labels_inner.append("")
+        labels_inner.append("")
+        labels_inner.append("Rellenados")
+        counts_inner.append(filled_data[0][0])
+        labels_inner.append("Por rellenar")
+        counts_inner.append(unfilled_data[0][0])
+
+        cmap = plt.get_cmap("tab20")
+        outer_colors = cmap([0, 4, 16])
+        inner_colors = cmap(numpy.array([0, 4, 17, 18]))
+        size = 0.3
+        self.axes_status.pie(counts_outer, labels=labels_outer, colors=outer_colors, radius=1, autopct='%1.1f%%', shadow=True, startangle=90, labeldistance=.9, wedgeprops=dict(width=size, edgecolor='w'))
+        self.axes_status.pie(counts_inner, labels=labels_inner, colors=inner_colors, radius=1-size, autopct='%1.1f%%', shadow=True, startangle=90, labeldistance=.8)
+
+        year_data = self.register.get_count_filtered_data(self.collection, 'year')
+        counts = []
+        labels = []
+        for year_datum in year_data:
+            if year_datum[1] is not None:
+                counts.append(year_datum[0])
+                labels.append(year_datum[1])
+
+        self.axes_year.bar(labels, counts, 0.35)
+        labels = self.axes_year.get_xticklabels()
+        plt.setp(labels, rotation=90, horizontalalignment='right')
+        plt.subplots_adjust(left=0.3, right=1, bottom=0.3, top=0.9)
+
+        self.Fit()
+        self.GetSizer().Layout()
+
+        origin_data = self.register.get_count_filtered_data(self.collection, 'origin')
+        coin_data = self.register.get_count_filtered_data(self.collection, 'coin')
+
+        # lot_data = self.register.get_count_filtered_data(self.collection, 'lot')
+        # # print(lot_data)
+        # counts = []
+        # labels = []
+        # for lot_datum in lot_data:
+        #     if lot_datum[1] is not None:
+        #         counts.append(lot_datum[0])
+        #         labels.append(lot_datum[1])
+
+        # self.axes_lot.barh(labels, counts, 0.35, label='Sorteos')
+
+
+        # t = arange(0.0, 3.0, 0.01)
+        # s = sin(2 * pi * t)
+        # self.axes_year.plot(t, s)
+        # self.axes_lot.plot(t, s)
 
     def UpdateCollection(self, collection):
         self.collection = collection
@@ -1065,7 +1184,6 @@ class MyFrame(wx.Frame):
         dataPanel = DataPanel(global_vertical_splitter, -1, register)
         menuPanel = MenuPanel(left_horizontal_splitter, -1, dataPanel, register)
         dataPanel.menuPanel = menuPanel
-
 
         menuPanel.SetBackgroundColour(wx.LIGHT_GREY)
         userPanel.SetBackgroundColour(wx.BLUE)
@@ -1087,6 +1205,14 @@ class MyApp(wx.App):
         frame.Show(True)
         self.SetTopWindow(frame)
         return True
+
+
+    # app = wx.PySimpleApp()
+    # fr = wx.Frame(None, title='test')
+    # panel = CanvasPanel(fr)
+    # panel.draw()
+    # fr.Show()
+    # app.MainLoop()
 
 app = MyApp(0)
 app.MainLoop()
