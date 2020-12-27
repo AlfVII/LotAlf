@@ -23,7 +23,10 @@ class Register():
 
     def get_number_data(self, collection_index, number):
         collection = self.get_collection_name(collection_index)
+        print("collection")
+        print(collection)
         sql = "SELECT * FROM {} WHERE number={};".format(collection, number)
+        print(collection)
 
         try:
             c = self.collections.cursor()
@@ -32,6 +35,8 @@ class Register():
         except Error as e:
             print(e)
 
+        print("data")
+        print(data)
         datadict = {}
         if len(data) > 0:
             for idx, col in enumerate(c.description):

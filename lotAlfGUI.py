@@ -18,9 +18,9 @@ import datetime
 statuses = ['Perfecto', 'Defectuoso', 'Falta']
 coins = ['PESETA', 'EURO']
 initial_year = 1967
-maximum_lot = 103
+maximum_lot = 105
 origins = ['ORDINARIO', 'NAVIDAD', 'EXTRAORDINARIO', 'ESPECIAL', 'NIÑO', 'ANTIGUO', 'JUEVES', 'ESCRITO']
-administration_province = ['ALBACETE', 'ALICANTE', 'ALMERÍA', 'ARABA', 'ASTURIAS', 'ÁVILA', 'BADAJOZ', 'BARCELONA', 'BIZKAIA', 'BURGOS', 'CANTABRIA', 'CASTELLÓN', 'CEUTA', 'CIUDAD REAL', 'CORUÑA (A)', 'CUENCA', 'CÁCERES', 'CÁDIZ', 'CÓRDOBA', 'GIPÚZKOA', 'GIRONA', 'GRAN CANARIA', 'GRANADA', 'GUADALAJARA', 'HUELVA', 'HUESCA', 'ISLAS BALEARES', 'JAÉN', 'LEÓN', 'LLEIDA', 'LUGO', 'MADRID', 'MELILLA', 'MURCIA', 'MÁLAGA', 'NAVARRA', 'OURENSE', 'PALENCIA', 'PALMAS (LAS)', 'PONTEVEDRA', 'RIOJA (LA)', 'SALAMANCA', 'SEGOVIA', 'SEVILLA', 'SORIA', 'TARRAGONA', 'TENERIFE', 'TERUEL', 'TOLEDO', 'VALENCIA', 'VALLADOLID', 'ZAMORA', 'ZARAGOZA']
+administration_province = ['ALBACETE', 'ALICANTE', 'ALMERÍA', 'ARABA', 'ASTURIAS', 'ÁVILA', 'BADAJOZ', 'BARCELONA', 'BIZKAIA', 'BURGOS', 'CÁCERES', 'CÁDIZ', 'CANTABRIA', 'CASTELLÓN', 'CEUTA', 'CIUDAD REAL', 'CÓRDOBA', 'CORUÑA (A)', 'CUENCA', 'GIPÚZKOA', 'GIRONA', 'GRAN CANARIA', 'GRANADA', 'GUADALAJARA', 'HUELVA', 'HUESCA', 'ISLAS BALEARES', 'JAÉN', 'LEÓN', 'LLEIDA', 'LUGO', 'MADRID', 'MÁLAGA', 'MELILLA', 'MURCIA', 'NAVARRA', 'OURENSE', 'PALENCIA', 'PALMAS (LAS)', 'PONTEVEDRA', 'RIOJA (LA)', 'SALAMANCA', 'SEGOVIA', 'SEVILLA', 'SORIA', 'TARRAGONA', 'TENERIFE', 'TERUEL', 'TOLEDO', 'VALENCIA', 'VALLADOLID', 'ZAMORA', 'ZARAGOZA']
 
 class MenuPanel(wx.Panel):
     def __init__(self, parent, ID, dataPanel, register):
@@ -47,11 +47,16 @@ class MenuPanel(wx.Panel):
         root = self.collections_tree.AddRoot('Colecciones')
 
         self.collections = self.register.get_collections_names()
-        self.options = ["Añadir", "Ver", "Comparar", "Estadísticas"]
+        self.options = ["Añadir", "Ver", "Estadísticas"]
+        self.suboptions = {"Añadir": [], "Ver": [], "Estadísticas": ["Provincia", "Municipio", "Año", "Estado", "Origen"]}
+
+        self.pages = ["Añadir", "Ver", "Estadísticas", "Provincia", "Municipio", "Año", "Estado", "Origen"]
         for collection in self.collections:
             tree = self.collections_tree.AppendItem(root, collection)
             for option in self.options:
-                self.collections_tree.AppendItem(tree, option)
+                option_branch = self.collections_tree.AppendItem(tree, option)
+                for suboption in self.suboptions[option]:
+                    self.collections_tree.AppendItem(option_branch, suboption)
 
         self.collections_tree.Bind(wx.EVT_TREE_SEL_CHANGED, self.OnSelChanged, id=1)
 
@@ -64,10 +69,15 @@ class MenuPanel(wx.Panel):
         item = event.GetItem()
         item_str = self.collections_tree.GetItemText(item).encode('utf-8')
         if item == self.collections_tree.GetRootItem():
-            self.dataPanel.SetPage(4, 0)
-        if self.collections_tree.GetItemText(item).encode('utf-8') in self.options:
-            parent = self.collections_tree.GetItemParent(item) 
-            self.dataPanel.SetPage(self.options.index(self.collections_tree.GetItemText(item).encode('utf-8')), self.collections.index(self.collections_tree.GetItemText(parent).encode('utf-8')))
+            self.dataPanel.SetPage(-1, 0)
+        parent = self.collections_tree.GetItemParent(item) 
+        parent_str = self.collections_tree.GetItemText(parent).encode('utf-8')
+        if item_str in self.options:
+            self.dataPanel.SetPage(self.pages.index(item_str), self.collections.index(self.collections_tree.GetItemText(parent).encode('utf-8')))
+
+        elif item_str in self.suboptions[parent_str]:
+            uberparent = self.collections_tree.GetItemParent(parent) 
+            self.dataPanel.SetPage(self.pages.index(item_str), self.collections.index(self.collections_tree.GetItemText(uberparent).encode('utf-8')))
 
 
 class UserPanel(wx.Panel):
@@ -85,22 +95,36 @@ class DataPanel(wx.Panel):
         startPanel = StartPanel(self, -1, register)
         viewPanel = ViewPanel(self, -1, register)
         addPanel = AddPanel(self, -1, register)
-        comparePanel = ComparePanel(self, -1, register)
         statisticsPanel = StatisticsPanel(self, -1, register)
+        statisticsProvincePanel = StatisticsProvincePanel(self, -1, register)
+        statisticsTownPanel = StatisticsTownPanel(self, -1, register)
+        statisticsYearPanel = StatisticsYearPanel(self, -1, register)
+        statisticsStatusPanel = StatisticsStatusPanel(self, -1, register)
+        statisticsOriginPanel = StatisticsOriginPanel(self, -1, register)
 
         self.sizer.Add(startPanel, 1, wx.EXPAND)
         self.sizer.Add(viewPanel, 1, wx.EXPAND)
         self.sizer.Add(addPanel, 1, wx.EXPAND)
-        self.sizer.Add(comparePanel, 1, wx.EXPAND)
         self.sizer.Add(statisticsPanel, 1, wx.EXPAND)
+        self.sizer.Add(statisticsProvincePanel, 1, wx.EXPAND)
+        self.sizer.Add(statisticsTownPanel, 1, wx.EXPAND)
+        self.sizer.Add(statisticsYearPanel, 1, wx.EXPAND)
+        self.sizer.Add(statisticsStatusPanel, 1, wx.EXPAND)
+        self.sizer.Add(statisticsOriginPanel, 1, wx.EXPAND)
 
         self.SetSizer(self.sizer)
         self.Centre()
 
-        self.pages = [addPanel, viewPanel, comparePanel, statisticsPanel, startPanel]
-        self.SetPage(4, 0)
+        self.pages = [addPanel, viewPanel, statisticsPanel, statisticsProvincePanel, statisticsTownPanel, statisticsYearPanel, statisticsStatusPanel, statisticsOriginPanel, startPanel]
+        # self.pages = [addPanel, viewPanel, statisticsPanel, startPanel]
+        self.SetPage(-1, 0)
 
         statisticsPanel.draw()
+        statisticsProvincePanel.draw()
+        statisticsTownPanel.draw()
+        statisticsYearPanel.draw()
+        statisticsStatusPanel.draw()
+        statisticsOriginPanel.draw()
 
     def SetPage(self, enabled_page, collection):
         for page in self.pages:
@@ -351,7 +375,10 @@ class ViewPanel(wx.Panel):
                 if button.unit == 1:
                     temp_number = self.current_ten_thousands + self.current_thousands + self.current_hundreds + button.number
                     number_data = self.register.get_number_data(self.collection, temp_number)
-                    button.SetBackgroundColour(self.viewMenuPanel.status_colors[statuses.index(number_data['status'])])
+                    if number_data is None:
+                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[statuses.index(statuses[-1])])
+                    else:
+                        button.SetBackgroundColour(self.viewMenuPanel.status_colors[statuses.index(number_data['status'])])
                     if self.filtered_numbers is not None:
                         if temp_number in self.filtered_numbers:
                             button.Show()
@@ -581,7 +608,7 @@ class NumberDialog(wx.Dialog):
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
 
-        lots = [str(x) for x in range(0, maximum_lot + 1)]
+        lots = [str(x) for x in range(1, maximum_lot + 1)]
         lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
         lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
         lot_combobox = wx.ComboBox(self, -1, choices=lots, style=wx.CB_READONLY,  size=(100, 20))
@@ -1000,7 +1027,7 @@ class AddPanel(wx.Panel):
         administration_sizer.Add(administration_town_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         administration_sizer.Add(administration_number_textctrl, 1, wx.ALL | wx.ALIGN_CENTER)
         
-        lots = [str(x) for x in range(0, maximum_lot + 1)]
+        lots = [str(x) for x in range(1, maximum_lot + 1)]
         lot_sizer = wx.BoxSizer(wx.HORIZONTAL)
         lot_statictext = wx.StaticText(self, -1, 'Sorteo: ', size=(100, 20))
         lot_combobox = wx.ComboBox(self, -1, choices=lots, style=wx.CB_READONLY,  size=(100, 20))
@@ -1048,14 +1075,8 @@ class AddPanel(wx.Panel):
     def UpdateCollection(self, collection):
         self.collection = collection
 
-class ComparePanel(wx.Panel):
-    def __init__(self, parent, ID, register):
-        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
-        self.text = wx.StaticText(self, -1, 'ComparePanel')
-
-    def UpdateCollection(self, collection):
-        self.collection = collection
-
+# StatisticsTownPanel
+# StatisticsOriginPanel
 class StatisticsPanel(wx.Panel):
     def __init__(self, parent, ID, register):
         wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
@@ -1093,6 +1114,14 @@ class StatisticsPanel(wx.Panel):
         self.Fit()
 
     def draw(self):
+        def remove_tildes(label):
+            label = label.replace('\xc3\x81', 'A')
+            label = label.replace('\xc3\x89', 'E')
+            label = label.replace('\xc3\x8d', 'I')
+            label = label.replace('\xc3\x93', 'O')
+            label = label.replace('\xc3\x9A', 'U')
+            return label
+
         province_data = self.register.get_count_filtered_data(self.collection, 'administration_province')
         counts = []
         labels = []
@@ -1100,10 +1129,26 @@ class StatisticsPanel(wx.Panel):
             if province_datum[1] is not None:
                 counts.append(province_datum[0])
                 labels.append(province_datum[1])
+        labels_for_order = []
+        labels_with_tildes_ordered = []
+        counts_ordered = []
+
+        for label in labels:
+            labels_for_order.append(remove_tildes(label))
+
+        labels_for_order.sort()
+        for label in labels_for_order:
+            for label_with_tilde in labels:
+                if label == remove_tildes(label_with_tilde):
+                    labels_with_tildes_ordered.append(label_with_tilde)
+                    counts_ordered.append(counts[labels.index(label_with_tilde)])
+
+        labels_with_tildes_ordered.reverse()
+        counts_ordered.reverse()
 
         t = arange(0.0, 3.0, 0.01)
         s = sin(2 * pi * t)
-        self.axes_provinces.barh(labels, counts, 0.8, label='Provincias')
+        self.axes_provinces.barh(labels_with_tildes_ordered, counts_ordered, 0.8, label='Provincias')
         self.figure_provinces.tight_layout()
 
 
@@ -1167,6 +1212,276 @@ class StatisticsPanel(wx.Panel):
         # s = sin(2 * pi * t)
         # self.axes_year.plot(t, s)
         # self.axes_lot.plot(t, s)
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+
+class StatisticsProvincePanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.text = wx.StaticText(self, -1, 'StatisticsProvincePanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        subsizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.Layout()
+
+        self.figure_provinces = Figure()
+        self.axes_provinces = self.figure_provinces.add_subplot(111)
+        canvas_provinces = FigureCanvas(self, -1, self.figure_provinces)
+        sizer.Add(canvas_provinces, 1, wx.RIGHT | wx.TOP | wx.EXPAND)
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+    def draw(self):
+        def remove_tildes(label):
+            label = label.replace('\xc3\x81', 'A')
+            label = label.replace('\xc3\x89', 'E')
+            label = label.replace('\xc3\x8d', 'I')
+            label = label.replace('\xc3\x93', 'O')
+            label = label.replace('\xc3\x9A', 'U')
+            return label
+
+        province_data = self.register.get_count_filtered_data(self.collection, 'administration_province')
+        counts = []
+        labels = []
+        for province_datum in province_data:
+            if province_datum[1] is not None:
+                counts.append(province_datum[0])
+                labels.append(province_datum[1])
+        labels_for_order = []
+        labels_with_tildes_ordered = []
+        counts_ordered = []
+
+        for label in labels:
+            labels_for_order.append(remove_tildes(label))
+
+        labels_for_order.sort()
+        for label in labels_for_order:
+            for label_with_tilde in labels:
+                if label == remove_tildes(label_with_tilde):
+                    labels_with_tildes_ordered.append(label_with_tilde)
+                    counts_ordered.append(counts[labels.index(label_with_tilde)])
+
+        labels_with_tildes_ordered.reverse()
+        counts_ordered.reverse()
+
+        self.axes_provinces.barh(labels_with_tildes_ordered, counts_ordered, 0.8, label='Provincias')
+        self.figure_provinces.tight_layout()
+
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+class StatisticsTownPanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition) 
+        self.text = wx.StaticText(self, -1, 'StatisticsTownPanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.VERTICAL)
+        self.Layout()
+
+        self.province = 'MADRID'
+        administration_statictext = wx.StaticText(self, -1, 'Elige una provincia:', size=(300, 20))
+        self.administration_province_combobox = wx.ComboBox(self, -1, choices=administration_province, style=wx.CB_READONLY,  size=(300, 20))
+        self.administration_province_combobox.SetSelection(self.administration_province_combobox.FindString(self.province))
+
+        self.figure_towns = Figure()
+        self.axes_towns = self.figure_towns.add_subplot(111)
+        self.canvas_towns = FigureCanvas(self, -1, self.figure_towns)
+        self.canvas_towns.draw()
+        sizer.Add(administration_statictext, 0, wx.ALL | wx.ALIGN_CENTER)
+        sizer.Add(self.administration_province_combobox, 0, wx.ALL | wx.ALIGN_CENTER)
+        sizer.Add(self.canvas_towns, 1, wx.TOP | wx.EXPAND)
+
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+        self.Bind(wx.EVT_COMBOBOX, self.OnSelChanged, self.administration_province_combobox)
+
+    def OnSelChanged(self, event):
+        new_province = str(self.administration_province_combobox.GetStringSelection().encode('utf-8'))
+        self.province = new_province
+        self.figure_towns.clf()
+        self.axes_towns = self.figure_towns.add_subplot(111)
+        self.draw()
+        self.canvas_towns.draw()
+
+    def draw(self):
+        def remove_tildes(label):
+            label = label.replace('\xc3\x81', 'A')
+            label = label.replace('\xc3\x89', 'E')
+            label = label.replace('\xc3\x8d', 'I')
+            label = label.replace('\xc3\x93', 'O')
+            label = label.replace('\xc3\x9A', 'U')
+            return label
+
+        town_data = self.register.get_count_filtered_data(self.collection, 'administration_town', where_clause='WHERE administration_province == \'{}\''.format(self.province))
+        counts = []
+        labels = []
+        for province_datum in town_data:
+            if province_datum[1] is not None:
+                counts.append(province_datum[0])
+                labels.append(province_datum[1])
+        labels_for_order = []
+        labels_with_tildes_ordered = []
+        counts_ordered = []
+
+        for label in labels:
+            labels_for_order.append(remove_tildes(label))
+
+        labels_for_order.sort()
+        for label in labels_for_order:
+            for label_with_tilde in labels:
+                if label == remove_tildes(label_with_tilde):
+                    labels_with_tildes_ordered.append(label_with_tilde)
+                    counts_ordered.append(counts[labels.index(label_with_tilde)])
+
+        labels_with_tildes_ordered.reverse()
+        counts_ordered.reverse()
+
+        self.axes_towns.barh(labels_with_tildes_ordered, counts_ordered, 0.8, label='Provincias')
+        self.figure_towns.tight_layout()
+
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+class StatisticsYearPanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.text = wx.StaticText(self, -1, 'StatisticsYearPanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        subsizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.Layout()
+
+        figure_year = Figure()
+        self.axes_year = figure_year.add_subplot(111)
+        canvas_year = FigureCanvas(self, -1, figure_year)
+        subsizer.Add(canvas_year, 1, wx.LEFT | wx.TOP | wx.EXPAND)
+        sizer.Add(subsizer, 3, wx.LEFT | wx.TOP | wx.EXPAND)
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+    def draw(self):
+
+        year_data = self.register.get_count_filtered_data(self.collection, 'year')
+        counts = []
+        labels = []
+        for year_datum in year_data:
+            if year_datum[1] is not None:
+                counts.append(year_datum[0])
+                labels.append(year_datum[1])
+
+        self.axes_year.bar(labels, counts, 0.35)
+        labels = self.axes_year.get_xticklabels()
+        plt.setp(labels, rotation=90, horizontalalignment='right')
+        plt.subplots_adjust(left=0.3, right=1, bottom=0.3, top=0.9)
+
+        self.Fit()
+        self.GetSizer().Layout()
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+class StatisticsStatusPanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.text = wx.StaticText(self, -1, 'StatisticsStatusPanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        subsizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.Layout()
+
+        figure_status = Figure()
+        self.axes_status = figure_status.add_subplot(111)
+        canvas_status = FigureCanvas(self, -1, figure_status)
+        subsizer.Add(canvas_status, 1, wx.CENTER | wx.TOP | wx.EXPAND)
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+    def draw(self):
+
+        status_data = self.register.get_count_filtered_data(self.collection, 'status')
+        filled_data = self.register.get_count_filtered_data(self.collection, 'status', 'WHERE administration_province is not NULL AND year is not NULL AND coin is not NULL AND lot is not NULL AND origin is not NULL AND status = \'Perfecto\'', False)
+        unfilled_data = self.register.get_count_filtered_data(self.collection, 'status', 'WHERE (administration_province is NULL OR year is NULL OR coin is NULL OR lot is NULL OR origin is NULL) AND status = \'Perfecto\'', False)
+
+        counts_outer = []
+        labels_outer = []
+        for status_datum in status_data:
+            counts_outer.append(status_datum[0])
+            labels_outer.append(status_datum[1])
+        counts_inner = copy.deepcopy(counts_outer)[:-1]
+        labels_inner = []
+        labels_inner.append("")
+        labels_inner.append("")
+        labels_inner.append("Rellenados")
+        counts_inner.append(filled_data[0][0])
+        labels_inner.append("Por rellenar")
+        counts_inner.append(unfilled_data[0][0])
+
+        cmap = plt.get_cmap("tab20")
+        outer_colors = cmap([0, 4, 16])
+        inner_colors = cmap(numpy.array([0, 4, 17, 18]))
+        size = 0.3
+        self.axes_status.pie(counts_outer, labels=labels_outer, colors=outer_colors, radius=1, autopct='%1.1f%%', shadow=True, startangle=90, labeldistance=.9, wedgeprops=dict(width=size, edgecolor='w'))
+        self.axes_status.pie(counts_inner, labels=labels_inner, colors=inner_colors, radius=1-size, autopct='%1.1f%%', shadow=True, startangle=90, labeldistance=.8)
+
+    def UpdateCollection(self, collection):
+        self.collection = collection
+
+class StatisticsOriginPanel(wx.Panel):
+    def __init__(self, parent, ID, register):
+        wx.Panel.__init__(self, parent, ID, wx.DefaultPosition)
+        self.text = wx.StaticText(self, -1, 'StatisticsOriginPanel')
+        self.register = register
+        self.SetBackgroundColour('white')
+
+        sizer = wx.BoxSizer(wx.HORIZONTAL)
+        subsizer = wx.BoxSizer(wx.VERTICAL)
+
+        self.Layout()
+
+        figure_status = Figure()
+        self.axes_status = figure_status.add_subplot(111)
+        canvas_status = FigureCanvas(self, -1, figure_status)
+        subsizer.Add(canvas_status, 1, wx.CENTER | wx.TOP | wx.EXPAND)
+
+        self.SetSizer(sizer)
+        self.Fit()
+
+    def draw(self):
+
+        origin_data = self.register.get_count_filtered_data(self.collection, 'origin')
+
+        counts_outer = []
+        labels_outer = []
+        for origin_datum in origin_data:
+            if origin_datum[1] is not None:
+                counts_outer.append(origin_datum[0])
+                labels_outer.append(origin_datum[1])
+        counts_inner = copy.deepcopy(counts_outer)[:-1]
+
+        cmap = plt.get_cmap("tab20")
+        outer_colors = cmap([0, 4, 16])
+        size = 0.3
+        self.axes_status.pie(counts_outer, labels=[unicode(x, 'utf-8') for x in labels_outer], colors=outer_colors, radius=1, autopct='%1.1f%%', shadow=True, startangle=90, labeldistance=.9)
 
     def UpdateCollection(self, collection):
         self.collection = collection
